@@ -1,0 +1,6 @@
+{
+  "cleanUrls": true,
+  "buildCommand": "echo 'No Build'",
+  "installCommand": "echo 'No Install'",
+  "outputDirectory": "."
+}
