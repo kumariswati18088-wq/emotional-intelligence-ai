@@ -51,13 +51,12 @@ app.use((err, _req, res, _next) => {
 const PORT = process.env.BACKEND_PORT || 5000;
 const path = require('path');
 
-// Frontend ke build folder ko serve karne ke liye
+const path = require('path');
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
-
-// Har route par frontend index.html bhejne ke liye
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
 });
+
 
 app.listen(PORT, () => {
   console.log(`EI Companion backend listening on port ${PORT}`);
