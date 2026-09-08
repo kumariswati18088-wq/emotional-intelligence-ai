@@ -1,4 +1,5 @@
-const BASE = "/api";
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "";
+const BASE = `${BACKEND_URL}/api`;
 
 async function request(path, { method = "GET", body, token } = {}) {
   const headers = { "Content-Type": "application/json" };
