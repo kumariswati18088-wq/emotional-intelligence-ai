@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
+const path = require("path");
 
 // Gracefully resolve JWT_SECRET from SESSION_SECRET if not set explicitly.
 if (!process.env.JWT_SECRET && process.env.SESSION_SECRET) {
@@ -49,17 +50,12 @@ app.use((err, _req, res, _next) => {
 });
 
 const PORT = process.env.BACKEND_PORT || 5000;
-const path = require('path');
 
-const path = require('path');
-app.use(express.static(path.join(__dirname, '../frontend/dist')));
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
-});
+// Local development ke liye listen karega, Vercel par automatic handle hoga
+if (process.env.NODE_ENV !== "production") {
+  app.listen(PORT, () => {
+    console.log(`EI Companion backend listening on port ${PORT}`);
+  });
+}
 
-
-app.listen(PORT, () => {
-  console.log(`EI Companion backend listening on port ${PORT}`);
-});
-
-
+module.exports = app;
