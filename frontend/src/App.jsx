@@ -8,8 +8,10 @@ import LiveCallModal from "./components/LiveCallModal";
 import { api } from "./utils/api";
 
 export default function App() {
-  const [token, setToken] = useState(() => localStorage.getItem("ei_token"));
-  const [user, setUser] = useState(null);
+  // Temporary bypass ke liye dummy token aur user daal diya hai
+  const [token, setToken] = useState(() => localStorage.getItem("ei_token") || "bypass_token");
+  const [user, setUser] = useState({ avatar: "GIRL1", voice: "GIGI", language: "en" }); 
+  
   const [settings, setSettings] = useState({
     avatar: "GIRL1",
     voice: "GIGI",
@@ -18,9 +20,10 @@ export default function App() {
   const [pendingSpeech, setPendingSpeech] = useState(null);
   const [adminToken, setAdminToken] = useState(null);
   const [callOpen, setCallOpen] = useState(false);
-  const [booting, setBooting] = useState(true);
+  const [booting, setBooting] = useState(false); // isko bhi false kiya taaki loading screen par na atke
 
-  // Rehydrate session on load.
+  // Rehydrate session on load ko comment kar diya hai (taaki backend se check na kare)
+  /*
   useEffect(() => {
     if (!token) {
       setBooting(false);
@@ -38,6 +41,7 @@ export default function App() {
       })
       .finally(() => setBooting(false));
   }, [token]);
+  */
 
   function handleAuthenticated(newToken, newUser) {
     localStorage.setItem("ei_token", newToken);
@@ -53,6 +57,8 @@ export default function App() {
     setAdminToken(null);
   }
 
+  // Loading screen ko bhi comment kar diya hai
+  /*
   if (booting) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -60,10 +66,15 @@ export default function App() {
       </div>
     );
   }
+  */
 
+  // ======== LOGIN WALA PAGE YAHAN COMMENT HO GAYA HAI ======== 
+  /*
   if (!token || !user) {
     return <Login onAuthenticated={handleAuthenticated} />;
   }
+  */
+  // =========================================================== 
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -102,9 +113,6 @@ export default function App() {
             <audio
               src={pendingSpeech.audio}
               autoPlay
-              // Set to muted by default to avoid double-voice with HeyGen's
-              // own synthesis of the same text — unmute if your HeyGen plan
-              // is configured to accept externally-generated audio instead.
               muted
               hidden
             />
