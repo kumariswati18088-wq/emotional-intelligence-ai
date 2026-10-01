@@ -1,4 +1,4 @@
-const BACKEND_URL = "https://emotional-intelligence-ai-gamma.vercel.app";
+const BACKEND_URL = "https://emotional-intelligence-ai-n9du.vercel.app";
 const BASE = `${BACKEND_URL}/api`;
 
 async function request(path, { method = "GET", body, token } = {}) {
