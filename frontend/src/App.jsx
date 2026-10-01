@@ -9,8 +9,11 @@ import { api } from "./utils/api";
 
 export default function App() {
   // Temporary bypass ke liye dummy token aur user daal diya hai
-  const [token, setToken] = useState(() => localStorage.getItem("ei_token") || "bypass_token");
-  const [user, setUser] = useState({ avatar: "GIRL1", voice: "GIGI", language: "en" }); 
+  const [token, setToken] = useState(() =>
+  localStorage.getItem("ei_token")
+);
+
+const [user, setUser] = useState(null);
   
   const [settings, setSettings] = useState({
     avatar: "GIRL1",
