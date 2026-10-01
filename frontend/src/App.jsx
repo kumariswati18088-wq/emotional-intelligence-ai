@@ -26,26 +26,31 @@ const [user, setUser] = useState(null);
   const [booting, setBooting] = useState(false); // isko bhi false kiya taaki loading screen par na atke
 
   // Rehydrate session on load ko comment kar diya hai (taaki backend se check na kare)
-  /*
-  useEffect(() => {
+    useEffect(() => {
     if (!token) {
       setBooting(false);
       return;
     }
+
     api
       .me(token)
       .then(({ user }) => {
         setUser(user);
-        setSettings({ avatar: user.avatar, voice: user.voice, language: user.language });
+        setSettings({
+          avatar: user.avatar,
+          voice: user.voice,
+          language: user.language,
+        });
       })
       .catch(() => {
         localStorage.removeItem("ei_token");
         setToken(null);
+        setUser(null);
       })
-      .finally(() => setBooting(false));
+      .finally(() => {
+        setBooting(false);
+      });
   }, [token]);
-  */
-
   function handleAuthenticated(newToken, newUser) {
     localStorage.setItem("ei_token", newToken);
     setToken(newToken);
