@@ -20,6 +20,40 @@ function publicUser(user) {
   return rest;
 }
 
+// POST /api/auth/guest
+// Creates an automatic guest session without showing a login page.
+router.post("/guest", (req, res) => {
+  const db = readDb();
+
+  const guestUsername = "guest";
+
+  let user = db.users.find(
+    (u) => u.username.toLowerCase() === guestUsername
+  );
+
+  if (!user) {
+    user = {
+      id: uuidv4(),
+      username: guestUsername,
+      passwordHash: "",
+      avatar: "GIRL1",
+      voice: "GIGI",
+      language: "en",
+      isGuest: true,
+      createdAt: new Date().toISOString(),
+    };
+
+    db.users.push(user);
+    writeDb(db);
+  }
+
+  const token = signUserToken(user);
+
+  res.json({
+    token,
+    user: publicUser(user),
+  });
+});
 // POST /api/auth/register
 router.post("/register", async (req, res) => {
   const { username, password } = req.body;
