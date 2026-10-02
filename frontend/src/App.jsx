@@ -26,30 +26,60 @@ const [user, setUser] = useState(null);
   const [booting, setBooting] = useState(false); // isko bhi false kiya taaki loading screen par na atke
 
   // Rehydrate session on load ko comment kar diya hai (taaki backend se check na kare)
-    useEffect(() => {
-    if (!token) {
-      setBooting(false);
-      return;
-    }
+      useEffect(() => {
+    let cancelled = false;
 
-    api
-      .me(token)
-      .then(({ user }) => {
+    async function initializeSession() {
+      if (!token) {
+        try {
+          const { token: guestToken, user: guestUser } = await api.guest();
+
+          if (cancelled) return;
+
+          localStorage.setItem("ei_token", guestToken);
+          setToken(guestToken);
+          setUser(guestUser);
+          setSettings({
+            avatar: guestUser.avatar,
+            voice: guestUser.voice,
+            language: guestUser.language,
+          });
+        } catch (err) {
+          console.error("Guest session failed:", err);
+          setBooting(false);
+        }
+        return;
+      }
+
+      try {
+        const { user } = await api.me(token);
+
+        if (cancelled) return;
+
         setUser(user);
         setSettings({
           avatar: user.avatar,
           voice: user.voice,
           language: user.language,
         });
-      })
-      .catch(() => {
+      } catch (err) {
+        if (cancelled) return;
+
         localStorage.removeItem("ei_token");
         setToken(null);
         setUser(null);
-      })
-      .finally(() => {
-        setBooting(false);
-      });
+      } finally {
+        if (!cancelled) {
+          setBooting(false);
+        }
+      }
+    }
+
+    initializeSession();
+
+    return () => {
+      cancelled = true;
+    };
   }, [token]);
   function handleAuthenticated(newToken, newUser) {
     localStorage.setItem("ei_token", newToken);
