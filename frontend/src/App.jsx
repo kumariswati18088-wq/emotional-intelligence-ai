@@ -23,7 +23,7 @@ const [user, setUser] = useState(null);
   const [pendingSpeech, setPendingSpeech] = useState(null);
   const [adminToken, setAdminToken] = useState(null);
   const [callOpen, setCallOpen] = useState(false);
-  const [booting, setBooting] = useState(false); // isko bhi false kiya taaki loading screen par na atke
+  const [booting, setBooting] = useState(true); // isko bhi false kiya taaki loading screen par na atke
 
   // Rehydrate session on load ko comment kar diya hai (taaki backend se check na kare)
       useEffect(() => {
