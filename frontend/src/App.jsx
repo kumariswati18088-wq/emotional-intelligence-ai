@@ -46,7 +46,7 @@ const [user, setUser] = useState(null);
       language: guestUser.language,
     });
 
-    setBooting(false);
+    const [booting, setBooting] = useState(true);
   } catch (err) {
     console.error("Guest session failed:", err);
     setBooting(false);
