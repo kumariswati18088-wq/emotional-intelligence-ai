@@ -31,25 +31,29 @@ const [user, setUser] = useState(null);
 
     async function initializeSession() {
       if (!token) {
-        try {
-          const { token: guestToken, user: guestUser } = await api.guest();
+  try {
+    const { token: guestToken, user: guestUser } = await api.guest();
 
-          if (cancelled) return;
+    if (cancelled) return;
 
-          localStorage.setItem("ei_token", guestToken);
-          setToken(guestToken);
-          setUser(guestUser);
-          setSettings({
-            avatar: guestUser.avatar,
-            voice: guestUser.voice,
-            language: guestUser.language,
-          });
-        } catch (err) {
-          console.error("Guest session failed:", err);
-          setBooting(false);
-        }
-        return;
-      }
+    localStorage.setItem("ei_token", guestToken);
+    setToken(guestToken);
+    setUser(guestUser);
+
+    setSettings({
+      avatar: guestUser.avatar,
+      voice: guestUser.voice,
+      language: guestUser.language,
+    });
+
+    setBooting(false);
+  } catch (err) {
+    console.error("Guest session failed:", err);
+    setBooting(false);
+  }
+
+  return;
+}
 
       try {
         const { user } = await api.me(token);
