@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import Login from "./components/Login";
 import AvatarScreen from "./components/AvatarScreen";
 import ChatBox from "./components/ChatBox";
 import ProfileMenu from "./components/ProfileMenu";
@@ -8,67 +7,100 @@ import LiveCallModal from "./components/LiveCallModal";
 import { api } from "./utils/api";
 
 export default function App() {
-  // Temporary bypass ke liye dummy token aur user daal diya hai
   const [token, setToken] = useState(() =>
-  localStorage.getItem("ei_token")
-);
+    localStorage.getItem("ei_token")
+  );
 
-const [user, setUser] = useState(null);
-  
+  const [user, setUser] = useState(null);
+
   const [settings, setSettings] = useState({
     avatar: "GIRL1",
     voice: "GIGI",
     language: "en",
   });
+
   const [pendingSpeech, setPendingSpeech] = useState(null);
   const [adminToken, setAdminToken] = useState(null);
   const [callOpen, setCallOpen] = useState(false);
-  const [booting, setBooting] = useState(true); // isko bhi false kiya taaki loading screen par na atke
 
-  // Rehydrate session on load ko comment kar diya hai (taaki backend se check na kare)
-      useEffect(() => {
+  // App ko loading screen par permanently lock nahi karna hai.
+  const [booting, setBooting] = useState(false);
+
+  useEffect(() => {
     let cancelled = false;
 
     async function initializeSession() {
+      // No token -> automatically create guest session
       if (!token) {
-  try {
-    const { token: guestToken, user: guestUser } = await api.guest();
+        setBooting(true);
 
-    if (cancelled) return;
+        try {
+          const response = await api.guest();
 
-    localStorage.setItem("ei_token", guestToken);
-    setToken(guestToken);
-    setUser(guestUser);
+          if (cancelled) return;
 
-    setSettings({
-      avatar: guestUser.avatar,
-      voice: guestUser.voice,
-      language: guestUser.language,
-    });
+          const guestToken = response.token;
+          const guestUser = response.user;
 
-    const [booting, setBooting] = useState(true);
-  } catch (err) {
-    console.error("Guest session failed:", err);
-    setBooting(false);
-  }
+          if (!guestToken || !guestUser) {
+            throw new Error("Guest session response is invalid");
+          }
 
-  return;
-}
+          localStorage.setItem("ei_token", guestToken);
+
+          setToken(guestToken);
+          setUser(guestUser);
+
+          setSettings({
+            avatar: guestUser.avatar || "GIRL1",
+            voice: guestUser.voice || "GIGI",
+            language: guestUser.language || "en",
+          });
+        } catch (err) {
+          console.error("Guest session failed:", err);
+
+          if (!cancelled) {
+            setUser(null);
+            setBooting(false);
+          }
+
+          return;
+        }
+
+        if (!cancelled) {
+          setBooting(false);
+        }
+
+        return;
+      }
+
+      // Existing token -> restore user session
+      setBooting(true);
 
       try {
-        const { user } = await api.me(token);
+        const response = await api.me(token);
 
         if (cancelled) return;
 
-        setUser(user);
+        const currentUser = response.user;
+
+        if (!currentUser) {
+          throw new Error("User data is missing");
+        }
+
+        setUser(currentUser);
+
         setSettings({
-          avatar: user.avatar,
-          voice: user.voice,
-          language: user.language,
+          avatar: currentUser.avatar || "GIRL1",
+          voice: currentUser.voice || "GIGI",
+          language: currentUser.language || "en",
         });
       } catch (err) {
+        console.error("Session restore failed:", err);
+
         if (cancelled) return;
 
+        // Old/invalid token -> remove it and create a fresh guest session
         localStorage.removeItem("ei_token");
         setToken(null);
         setUser(null);
@@ -85,12 +117,6 @@ const [user, setUser] = useState(null);
       cancelled = true;
     };
   }, [token]);
-  function handleAuthenticated(newToken, newUser) {
-    localStorage.setItem("ei_token", newToken);
-    setToken(newToken);
-    setUser(newUser);
-    setSettings({ avatar: newUser.avatar, voice: newUser.voice, language: newUser.language });
-  }
 
   function handleLogout() {
     localStorage.removeItem("ei_token");
@@ -99,20 +125,46 @@ const [user, setUser] = useState(null);
     setAdminToken(null);
   }
 
-  // Loading screen ko bhi comment kar diya hai
-    if (booting) {
+  function retryGuestSession() {
+    localStorage.removeItem("ei_token");
+    setToken(null);
+    setUser(null);
+    setBooting(false);
+  }
+
+  // Initial/session loading
+  if (booting) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="h-8 w-8 rounded-full border-2 border-lavender-400 border-t-transparent animate-spin" />
       </div>
     );
-    }
+  }
 
-  // ======== LOGIN WALA PAGE YAHAN COMMENT HO GAYA HAI ======== 
-//   if (!token || !user) {
-//    return <Login onAuthenticated={handleAuthenticated} />;
-//  }
-  // =========================================================== 
+  // Guest session failed
+  // Login page intentionally disabled.
+  if (!user || !token) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="max-w-md w-full rounded-3xl border border-white/10 bg-midnight-900/60 p-6 text-center">
+          <h2 className="text-xl font-semibold mb-3">
+            Unable to start Aura
+          </h2>
+
+          <p className="text-white/60 text-sm mb-6">
+            The guest session could not be created. Please try again.
+          </p>
+
+          <button
+            onClick={retryGuestSession}
+            className="px-5 py-2.5 rounded-full bg-teal-400/20 border border-teal-300/30 text-teal-200 hover:bg-teal-400/30"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -121,6 +173,7 @@ const [user, setUser] = useState(null);
           <span className="text-xl">✦</span>
           <h1 className="font-display text-xl">Aura</h1>
         </div>
+
         <div className="flex items-center gap-3">
           <button
             onClick={() => setCallOpen(true)}
@@ -128,6 +181,7 @@ const [user, setUser] = useState(null);
           >
             📞 Live call
           </button>
+
           <ProfileMenu
             token={token}
             user={user}
@@ -147,6 +201,7 @@ const [user, setUser] = useState(null);
             pendingSpeech={pendingSpeech}
             onSpeechConsumed={() => setPendingSpeech(null)}
           />
+
           {pendingSpeech?.audio && (
             <audio
               src={pendingSpeech.audio}
@@ -168,8 +223,16 @@ const [user, setUser] = useState(null);
         </div>
       </main>
 
-      {callOpen && <LiveCallModal onClose={() => setCallOpen(false)} />}
-      {adminToken && <AdminPanel adminToken={adminToken} onClose={() => setAdminToken(null)} />}
+      {callOpen && (
+        <LiveCallModal onClose={() => setCallOpen(false)} />
+      )}
+
+      {adminToken && (
+        <AdminPanel
+          adminToken={adminToken}
+          onClose={() => setAdminToken(null)}
+        />
+      )}
     </div>
   );
 }
