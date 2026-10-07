@@ -2,8 +2,13 @@ const BACKEND_URL = "https://emotional-intelligence-ai-n9du.vercel.app";
 const BASE = `${BACKEND_URL}/api`;
 
 async function request(path, { method = "GET", body, token } = {}) {
-  const headers = { "Content-Type": "application/json" };
-  if (token) headers.Authorization = `Bearer ${token}`;
+  const headers = {
+    "Content-Type": "application/json",
+  };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
 
   const res = await fetch(`${BASE}${path}`, {
     method,
@@ -12,47 +17,132 @@ async function request(path, { method = "GET", body, token } = {}) {
   });
 
   const data = await res.json().catch(() => ({}));
+
   if (!res.ok) {
-    throw new Error(data.error || `Request failed (${res.status})`);
+    throw new Error(
+      data.error || `Request failed (${res.status})`
+    );
   }
+
   return data;
 }
 
 export const api = {
+  // --- Authentication ---
   guest: () =>
-    request("/auth/guest", { method: "POST" }),
+    request("/auth/guest", {
+      method: "POST",
+    }),
 
   register: (username, password) =>
-    request("/auth/register", { method: "POST", body: { username, password } }),
+    request("/auth/register", {
+      method: "POST",
+      body: {
+        username,
+        password,
+      },
+    }),
+
   login: (username, password) =>
-    request("/auth/login", { method: "POST", body: { username, password } }),
-  me: (token) => request("/auth/me", { token }),
+    request("/auth/login", {
+      method: "POST",
+      body: {
+        username,
+        password,
+      },
+    }),
+
+  me: (token) =>
+    request("/auth/me", {
+      token,
+    }),
+
   updateProfile: (token, updates) =>
-    request("/auth/profile", { method: "PUT", body: updates, token }),
+    request("/auth/profile", {
+      method: "PUT",
+      body: updates,
+      token,
+    }),
 
+  // --- AI Chat ---
   sendChat: (token, payload) =>
-    request("/chat", { method: "POST", body: payload, token }),
+    request("/chat", {
+      method: "POST",
+      body: payload,
+      token,
+    }),
 
-  // HeyGen — native WebRTC flow via backend proxy
+  // --- LiveAvatar / HeyGen ---
+  // Creates a LiveAvatar session token on the backend.
+  // The frontend LiveAvatar SDK uses this token to start
+  // and manage the real-time avatar session.
   heygenSession: (token, avatar) =>
-    request("/heygen/session", { method: "POST", body: { avatarId: avatar }, token }),
-  heygenStart: (token, sessionId, sdpAnswer) =>
-    request("/heygen/start", { method: "POST", body: { sessionId, sdpAnswer }, token }),
-  heygenIce: (token, sessionId, candidate) =>
-    request("/heygen/ice", { method: "POST", body: { sessionId, candidate }, token }),
-  heygenSpeak: (token, sessionId, text) =>
-    request("/heygen/speak", { method: "POST", body: { sessionId, text }, token }),
-  heygenStop: (token, sessionId) =>
-    request("/heygen/stop", { method: "POST", body: { sessionId }, token }),
+    request("/heygen/session", {
+      method: "POST",
+      body: {
+        avatarId: avatar,
+      },
+      token,
+    }),
 
+  // Explicitly starts a LiveAvatar session when needed.
+  // The SDK normally handles this internally, so this is
+  // kept as a backend helper.
+  heygenStart: (token, sessionToken) =>
+    request("/heygen/start", {
+      method: "POST",
+      body: {
+        sessionToken,
+      },
+      token,
+    }),
+
+  // Stops a LiveAvatar session.
+  heygenStop: (token, sessionToken) =>
+    request("/heygen/stop", {
+      method: "POST",
+      body: {
+        sessionToken,
+      },
+      token,
+    }),
+
+  // --- Admin ---
   adminVerify: (phrase) =>
-    request("/admin/verify", { method: "POST", body: { phrase } }),
-  adminUsers: (adminToken) => request("/admin/users", { token: adminToken }),
+    request("/admin/verify", {
+      method: "POST",
+      body: {
+        phrase,
+      },
+    }),
+
+  adminUsers: (adminToken) =>
+    request("/admin/users", {
+      token: adminToken,
+    }),
+
   adminUpdateUser: (adminToken, id, updates) =>
-    request(`/admin/users/${id}`, { method: "PUT", body: updates, token: adminToken }),
+    request(`/admin/users/${id}`, {
+      method: "PUT",
+      body: updates,
+      token: adminToken,
+    }),
+
   adminDeleteUser: (adminToken, id) =>
-    request(`/admin/users/${id}`, { method: "DELETE", token: adminToken }),
-  adminGetSettings: (adminToken) => request("/admin/settings", { token: adminToken }),
+    request(`/admin/users/${id}`, {
+      method: "DELETE",
+      token: adminToken,
+    }),
+
+  adminGetSettings: (adminToken) =>
+    request("/admin/settings", {
+      token: adminToken,
+    }),
+
   adminUpdateSettings: (adminToken, updates) =>
-    request("/admin/settings", { method: "PUT", body: updates, token: adminToken }),
+    request("/admin/settings", {
+      method: "PUT",
+      body: updates,
+      token: adminToken,
+    }),
 };
