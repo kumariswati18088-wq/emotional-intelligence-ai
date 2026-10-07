@@ -1,4 +1,10 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+} from "react";
+import { LiveAvatarSession } from "@heygen/liveavatar-web-sdk";
 import { api } from "../utils/api";
 
 const EMOTION_LABELS = {
@@ -12,30 +18,44 @@ const EMOTION_LABELS = {
   Neutral: "🙂 Neutral",
 };
 
-export default function AvatarScreen({ token, avatar, pendingSpeech, onSpeechConsumed }) {
+export default function AvatarScreen({
+  token,
+  avatar,
+  pendingSpeech,
+  onSpeechConsumed,
+}) {
   const videoRef = useRef(null);
-  const pcRef = useRef(null);
-  const heygenSessionIdRef = useRef(null);
-  const [status, setStatus] = useState("idle"); // idle | connecting | live | error
+  const sessionRef = useRef(null);
+  const sessionTokenRef = useRef(null);
+
+  const [status, setStatus] = useState("idle");
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [currentEmotion, setCurrentEmotion] = useState("Neutral");
   const [errorMsg, setErrorMsg] = useState("");
 
+  // --- Step 1: Stop the current LiveAvatar session ---
   const stopSession = useCallback(async () => {
-    if (pcRef.current) {
-      pcRef.current.close();
-      pcRef.current = null;
+    const session = sessionRef.current;
+
+    sessionRef.current = null;
+    sessionTokenRef.current = null;
+
+    if (session) {
+      try {
+        await session.stop();
+      } catch (err) {
+        console.warn("LiveAvatar stop error:", err);
+      }
     }
+
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
-    if (heygenSessionIdRef.current) {
-      api.heygenStop(token, heygenSessionIdRef.current).catch(() => {});
-      heygenSessionIdRef.current = null;
-    }
-  }, [token]);
 
-  // Establish WebRTC session with HeyGen via backend proxy
+    setIsSpeaking(false);
+  }, []);
+
+  // --- Step 2: Create and start a LiveAvatar session ---
   useEffect(() => {
     let cancelled = false;
 
@@ -44,62 +64,62 @@ export default function AvatarScreen({ token, avatar, pendingSpeech, onSpeechCon
       setErrorMsg("");
 
       try {
-        // 1. Create HeyGen streaming session — server returns SDP offer + ICE servers
-        const { sessionId, sdpOffer, iceServers } = await api.heygenSession(token, avatar);
+        // Ask our backend for a LiveAvatar session token.
+        const response = await api.heygenSession(token, avatar);
+
         if (cancelled) return;
 
-        heygenSessionIdRef.current = sessionId;
+        const sessionToken = response?.sessionToken;
 
-        // 2. Create RTCPeerConnection with HeyGen's ICE servers
-        const pc = new RTCPeerConnection({ iceServers, iceTransportPolicy: "all" });
-        pcRef.current = pc;
+        if (!sessionToken) {
+          throw new Error(
+            "LiveAvatar session token was not returned by the backend"
+          );
+        }
 
-        // 3. When remote media track arrives, bind to video element
-        pc.ontrack = (event) => {
-          if (cancelled) return;
-          if (videoRef.current && event.streams.length > 0) {
-            videoRef.current.srcObject = event.streams[0];
-            setStatus("live");
-          }
-        };
+        sessionTokenRef.current = sessionToken;
 
-        // 4. Forward local ICE candidates to HeyGen through the backend
-        pc.onicecandidate = ({ candidate }) => {
-          if (candidate && heygenSessionIdRef.current) {
-            api.heygenIce(token, heygenSessionIdRef.current, {
-              candidate: candidate.candidate,
-              sdpMid: candidate.sdpMid ?? "0",
-              sdpMLineIndex: candidate.sdpMLineIndex ?? 0,
-            }).catch(() => {});
-          }
-        };
+        // Create the official LiveAvatar Web SDK session.
+        const session = new LiveAvatarSession(sessionToken, {
+          autoKeepAlive: true,
 
-        pc.oniceconnectionstatechange = () => {
-          if (cancelled) return;
-          const s = pc.iceConnectionState;
-          if (s === "failed" || s === "disconnected") {
-            setStatus("error");
-            setErrorMsg("Connection lost. Reload to reconnect.");
-          }
-        };
+          // Aura's own ChatBox already handles the user's messages,
+          // so LiveAvatar microphone/voice chat stays muted.
+          voiceChat: {
+            defaultMuted: true,
+          },
+        });
 
-        // 5. Set HeyGen's SDP offer as remote description
-        await pc.setRemoteDescription(new RTCSessionDescription(sdpOffer));
-
-        // 6. Create local SDP answer
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-
-        // 7. Send SDP answer to HeyGen via backend
-        await api.heygenStart(token, sessionId, { type: answer.type, sdp: answer.sdp });
+        sessionRef.current = session;
 
         if (cancelled) {
-          stopSession();
+          await session.stop().catch(() => {});
+          return;
         }
+
+        // Start the LiveAvatar session.
+        await session.start();
+
+        if (cancelled) {
+          await session.stop().catch(() => {});
+          return;
+        }
+
+        // Attach the LiveAvatar video/audio stream to our video element.
+        if (videoRef.current) {
+          session.attach(videoRef.current);
+        }
+
+        setStatus("live");
       } catch (err) {
+        console.error("LiveAvatar connection error:", err);
+
         if (!cancelled) {
           setStatus("error");
-          setErrorMsg(err.message || "Could not connect to the avatar stream");
+          setErrorMsg(
+            err?.message ||
+              "Could not connect to the avatar stream"
+          );
         }
       }
     }
@@ -110,23 +130,45 @@ export default function AvatarScreen({ token, avatar, pendingSpeech, onSpeechCon
       cancelled = true;
       stopSession();
     };
-  }, [avatar, token]); // reconnect when avatar selection changes
+  }, [avatar, token, stopSession]);
 
-  // Speak whatever text the chat pipeline hands down
+  // --- Step 3: Make the avatar speak the AI response ---
   useEffect(() => {
-    if (!pendingSpeech || status !== "live" || !heygenSessionIdRef.current) return;
+    if (
+      !pendingSpeech?.text ||
+      status !== "live" ||
+      !sessionRef.current
+    ) {
+      return;
+    }
 
-    setCurrentEmotion(pendingSpeech.emotion || "Neutral");
+    const session = sessionRef.current;
+
+    setCurrentEmotion(
+      pendingSpeech.emotion || "Neutral"
+    );
+
     setIsSpeaking(true);
 
-    api
-      .heygenSpeak(token, heygenSessionIdRef.current, pendingSpeech.text)
-      .catch((err) => console.error("Avatar speak error:", err))
-      .finally(() => {
+    try {
+      // FULL-mode LiveAvatar supports text speech through repeat().
+      session.repeat(pendingSpeech.text);
+    } catch (err) {
+      console.error("LiveAvatar speak error:", err);
+    } finally {
+      onSpeechConsumed?.();
+
+      // The SDK controls the actual speaking duration.
+      // Keep the visual speaking state short and reset it.
+      window.setTimeout(() => {
         setIsSpeaking(false);
-        onSpeechConsumed?.();
-      });
-  }, [pendingSpeech, status, token]);
+      }, 1500);
+    }
+  }, [
+    pendingSpeech,
+    status,
+    onSpeechConsumed,
+  ]);
 
   return (
     <div className="relative w-full aspect-square max-w-md mx-auto rounded-3xl overflow-hidden border border-white/10 bg-midnight-900 shadow-glow">
@@ -134,8 +176,11 @@ export default function AvatarScreen({ token, avatar, pendingSpeech, onSpeechCon
         ref={videoRef}
         autoPlay
         playsInline
+        muted={false}
         className={`w-full h-full object-cover transition-opacity duration-700 ${
-          status === "live" ? "opacity-100" : "opacity-0"
+          status === "live"
+            ? "opacity-100"
+            : "opacity-0"
         }`}
       />
 
@@ -144,14 +189,25 @@ export default function AvatarScreen({ token, avatar, pendingSpeech, onSpeechCon
           {status === "connecting" && (
             <>
               <div className="h-10 w-10 rounded-full border-2 border-lavender-400 border-t-transparent animate-spin" />
-              <p className="text-white/60 text-sm">Connecting to your companion…</p>
+
+              <p className="text-white/60 text-sm">
+                Connecting to your companion…
+              </p>
             </>
           )}
+
           {status === "error" && (
-            <p className="text-red-400 text-sm px-6 text-center">{errorMsg}</p>
+            <>
+              <p className="text-red-400 text-sm px-6 text-center">
+                {errorMsg}
+              </p>
+            </>
           )}
+
           {status === "idle" && (
-            <p className="text-white/40 text-sm">Avatar stream idle</p>
+            <p className="text-white/40 text-sm">
+              Avatar stream idle
+            </p>
           )}
         </div>
       )}
@@ -165,10 +221,14 @@ export default function AvatarScreen({ token, avatar, pendingSpeech, onSpeechCon
       <div className="absolute top-3 left-3 flex items-center gap-2 rounded-full bg-black/40 backdrop-blur px-3 py-1 text-xs">
         <span
           className={`h-2 w-2 rounded-full ${
-            status === "live" ? "bg-teal-400" : "bg-white/30"
+            status === "live"
+              ? "bg-teal-400"
+              : "bg-white/30"
           }`}
         />
-        {EMOTION_LABELS[currentEmotion] || currentEmotion}
+
+        {EMOTION_LABELS[currentEmotion] ||
+          currentEmotion}
       </div>
     </div>
   );
