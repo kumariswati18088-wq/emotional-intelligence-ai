@@ -1,7 +1,6 @@
 const express = require("express");
 const rateLimit = require("express-rate-limit");
 const { requireAuth } = require("../middleware/auth");
-const { readDb } = require("../utils/store");
 const {
   detectEmotion,
   generateReply,
@@ -17,31 +16,33 @@ const chatLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// POST /api/chat
-// body: { message, language, voice, history: [{role, text}] }
 router.post("/", requireAuth, chatLimiter, async (req, res) => {
   const { message, language, voice, history } = req.body;
+
   if (!message || !message.trim()) {
-    return res.status(400).json({ error: "Message is required" });
+    return res.status(400).json({
+      error: "Message is required",
+    });
   }
 
   try {
-    const db = readDb();
-    const enginesOn = db.settings.emotionEngines;
+    // Step 1: Detect emotion.
+    // detectEmotion already has its own fallback,
+    // so Hume failure will not stop the chat.
+    const emotion = await detectEmotion(message);
 
-    // Step 1: Hume — extract emotional state (guarded by admin toggle)
-    const emotion = enginesOn.hume ? await detectEmotion(message) : "Neutral";
-
-    // Step 2: Gemini — generate reply text in the selected language
+    // Step 2: Generate AI reply.
     const replyText = await generateReply({
       message,
       emotion,
       language: language || "en",
-      history: history || [],
+      history: Array.isArray(history) ? history : [],
     });
 
-    // Step 3: ElevenLabs — synthesize emotional speech with chosen voice
+    // Step 3: TTS is optional.
+    // If ElevenLabs fails, the text reply still works.
     let audioBase64 = null;
+
     try {
       audioBase64 = await synthesizeSpeech({
         text: replyText,
@@ -49,18 +50,28 @@ router.post("/", requireAuth, chatLimiter, async (req, res) => {
         emotion,
       });
     } catch (ttsErr) {
-      // Speech synthesis is best-effort; text reply still returns.
-      audioBase64 = null;
+      console.warn(
+        "TTS failed (non-fatal):",
+        ttsErr?.response?.data || ttsErr?.message || ttsErr
+      );
     }
 
-    res.json({
+    return res.json({
       emotion,
       reply: replyText,
-      audio: audioBase64 ? `data:audio/mpeg;base64,${audioBase64}` : null,
+      audio: audioBase64
+        ? `data:audio/mpeg;base64,${audioBase64}`
+        : null,
     });
   } catch (err) {
-    console.error("Chat pipeline error:", err.message);
-    res.status(502).json({ error: "AI pipeline failed. Please try again." });
+    console.error(
+      "Chat pipeline error:",
+      err?.response?.data || err?.stack || err?.message || err
+    );
+
+    return res.status(502).json({
+      error: "AI pipeline failed. Please try again.",
+    });
   }
 });
 
