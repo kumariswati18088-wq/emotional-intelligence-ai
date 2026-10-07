@@ -27,8 +27,6 @@ router.post("/", requireAuth, chatLimiter, async (req, res) => {
 
   try {
     // Step 1: Detect emotion.
-    // detectEmotion already has its own fallback,
-    // so Hume failure will not stop the chat.
     const emotion = await detectEmotion(message);
 
     // Step 2: Generate AI reply.
@@ -40,7 +38,6 @@ router.post("/", requireAuth, chatLimiter, async (req, res) => {
     });
 
     // Step 3: TTS is optional.
-    // If ElevenLabs fails, the text reply still works.
     let audioBase64 = null;
 
     try {
@@ -64,13 +61,17 @@ router.post("/", requireAuth, chatLimiter, async (req, res) => {
         : null,
     });
   } catch (err) {
-    console.error(
-      "Chat pipeline error:",
-      err?.response?.data || err?.stack || err?.message || err
-    );
+    const upstreamError =
+      err?.response?.data ||
+      err?.response?.statusText ||
+      err?.message ||
+      "Unknown error";
+
+    console.error("Chat pipeline error:", upstreamError);
 
     return res.status(502).json({
-      error: "AI pipeline failed. Please try again.",
+      error: "AI pipeline failed.",
+      detail: upstreamError,
     });
   }
 });
