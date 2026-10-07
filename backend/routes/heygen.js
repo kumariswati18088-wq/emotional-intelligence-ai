@@ -4,144 +4,181 @@ const { requireAuth } = require("../middleware/auth");
 
 const router = express.Router();
 
-const HEYGEN_BASE = "https://api.heygen.com";
+const LIVEAVATAR_BASE = "https://api.liveavatar.com";
 
-function heygenHeaders() {
+function liveAvatarHeaders() {
   return {
-    "X-Api-Key": process.env.HEYGEN_API_KEY || "",
+    "X-API-KEY": process.env.HEYGEN_API_KEY || "",
     "Content-Type": "application/json",
   };
 }
 
-// GET /api/heygen/token — short-lived streaming token (kept for compatibility)
-router.get("/token", requireAuth, async (_req, res) => {
-  if (!process.env.HEYGEN_API_KEY) {
-    return res.status(503).json({ error: "HeyGen API key not configured" });
-  }
-  try {
-    const { data } = await axios.post(
-      `${HEYGEN_BASE}/v1/streaming.create_token`,
-      {},
-      { headers: heygenHeaders(), timeout: 10000 }
-    );
-    res.json({ token: data?.data?.token });
-  } catch (err) {
-    res.status(502).json({ error: err.message });
-  }
-});
-
-// POST /api/heygen/session — create WebRTC streaming session
-// body: { avatarId, voiceId }
-// Returns: { sessionId, sdpOffer, iceServers }
+// --- Step 1: Create LiveAvatar session token ---
+// The backend keeps the LiveAvatar API key private and creates a
+// short-lived session token for the frontend LiveAvatar Web SDK.
 router.post("/session", requireAuth, async (req, res) => {
   if (!process.env.HEYGEN_API_KEY) {
-    return res.status(503).json({ error: "HeyGen API key not configured" });
+    return res.status(503).json({
+      error: "HeyGen/LiveAvatar API key not configured",
+    });
   }
-  const { avatarId, voiceId } = req.body;
+
+  const { avatarId } = req.body;
+
+  if (!avatarId) {
+    return res.status(400).json({
+      error: "avatarId is required",
+    });
+  }
+
   try {
-    const { data } = await axios.post(
-      `${HEYGEN_BASE}/v1/streaming.new`,
+    const response = await axios.post(
+      `${LIVEAVATAR_BASE}/v1/sessions/token`,
       {
-        quality: "low",
-        avatar_name: avatarId || "",
-        voice: { voice_id: voiceId || "" },
-        version: "v2",
+        mode: "FULL",
+        avatar_id: avatarId,
       },
-      { headers: heygenHeaders(), timeout: 15000 }
+      {
+        headers: liveAvatarHeaders(),
+        timeout: 15000,
+      }
     );
+
+    const data = response.data?.data;
+
+    if (!data?.session_token) {
+      console.error("LiveAvatar token response:", response.data);
+
+      return res.status(502).json({
+        error: "LiveAvatar did not return a session token",
+      });
+    }
+
     res.json({
-      sessionId: data?.data?.session_id,
-      sdpOffer: data?.data?.sdp,
-      iceServers: data?.data?.ice_servers2 || [],
+      sessionToken: data.session_token,
+      sessionId: data.session_id || null,
     });
   } catch (err) {
-    const detail = err.response?.data ? JSON.stringify(err.response.data) : err.message;
-    res.status(502).json({ error: `HeyGen session error: ${detail}` });
+    const detail = err.response?.data
+      ? JSON.stringify(err.response.data)
+      : err.message;
+
+    console.error("LiveAvatar session token error:", detail);
+
+    res.status(502).json({
+      error: `LiveAvatar session error: ${detail}`,
+    });
   }
 });
 
-// POST /api/heygen/start — send SDP answer to HeyGen
-// body: { sessionId, sdpAnswer: { type, sdp } }
+// --- Step 2: Start LiveAvatar session ---
+// The frontend SDK normally handles the LiveKit/WebSocket connection.
+// This endpoint is kept as a backend helper for cases where the
+// application needs to explicitly start a session from the backend.
 router.post("/start", requireAuth, async (req, res) => {
-  if (!process.env.HEYGEN_API_KEY) {
-    return res.status(503).json({ error: "HeyGen API key not configured" });
+  const { sessionToken } = req.body;
+
+  if (!sessionToken) {
+    return res.status(400).json({
+      error: "sessionToken is required",
+    });
   }
-  const { sessionId, sdpAnswer } = req.body;
+
   try {
-    const { data } = await axios.post(
-      `${HEYGEN_BASE}/v1/streaming.start`,
-      { session_id: sessionId, sdp: sdpAnswer },
-      { headers: heygenHeaders(), timeout: 10000 }
+    const response = await axios.post(
+      `${LIVEAVATAR_BASE}/v1/sessions/start`,
+      {},
+      {
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 15000,
+      }
     );
-    res.json(data);
+
+    res.json(response.data);
   } catch (err) {
-    const detail = err.response?.data ? JSON.stringify(err.response.data) : err.message;
-    res.status(502).json({ error: `HeyGen start error: ${detail}` });
+    const detail = err.response?.data
+      ? JSON.stringify(err.response.data)
+      : err.message;
+
+    console.error("LiveAvatar start error:", detail);
+
+    res.status(502).json({
+      error: `LiveAvatar start error: ${detail}`,
+    });
   }
 });
 
-// POST /api/heygen/ice — forward ICE candidate to HeyGen
-// body: { sessionId, candidate: { candidate, sdpMid, sdpMLineIndex } }
-router.post("/ice", requireAuth, async (req, res) => {
-  if (!process.env.HEYGEN_API_KEY) {
-    return res.status(503).json({ error: "HeyGen API key not configured" });
-  }
-  const { sessionId, candidate } = req.body;
-  try {
-    const { data } = await axios.post(
-      `${HEYGEN_BASE}/v1/streaming.ice`,
-      { session_id: sessionId, candidate },
-      { headers: heygenHeaders(), timeout: 8000 }
-    );
-    res.json(data);
-  } catch (err) {
-    // ICE errors are non-fatal — log and return ok so the client keeps running
-    console.warn("HeyGen ICE error (non-fatal):", err.message);
-    res.json({ ok: true });
-  }
-});
-
-// POST /api/heygen/speak — make the avatar speak text
-// body: { sessionId, text }
-router.post("/speak", requireAuth, async (req, res) => {
-  if (!process.env.HEYGEN_API_KEY) {
-    return res.status(503).json({ error: "HeyGen API key not configured" });
-  }
-  const { sessionId, text } = req.body;
-  if (!sessionId || !text) {
-    return res.status(400).json({ error: "sessionId and text are required" });
-  }
-  try {
-    const { data } = await axios.post(
-      `${HEYGEN_BASE}/v1/streaming.task`,
-      { session_id: sessionId, text, task_type: "repeat" },
-      { headers: heygenHeaders(), timeout: 10000 }
-    );
-    res.json(data);
-  } catch (err) {
-    const detail = err.response?.data ? JSON.stringify(err.response.data) : err.message;
-    res.status(502).json({ error: `HeyGen speak error: ${detail}` });
-  }
-});
-
-// POST /api/heygen/stop — stop the streaming session
-// body: { sessionId }
+// --- Step 3: Stop LiveAvatar session ---
+// The LiveAvatar Web SDK normally performs cleanup when session.stop()
+// is called. This endpoint is provided for explicit server-side cleanup.
 router.post("/stop", requireAuth, async (req, res) => {
-  if (!process.env.HEYGEN_API_KEY) {
+  const { sessionToken } = req.body;
+
+  if (!sessionToken) {
     return res.json({ ok: true });
   }
-  const { sessionId } = req.body;
+
   try {
     await axios.post(
-      `${HEYGEN_BASE}/v1/streaming.stop`,
-      { session_id: sessionId },
-      { headers: heygenHeaders(), timeout: 8000 }
+      `${LIVEAVATAR_BASE}/v1/sessions/stop`,
+      {},
+      {
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 10000,
+      }
     );
+
     res.json({ ok: true });
   } catch (err) {
-    console.warn("HeyGen stop error (non-fatal):", err.message);
+    const detail = err.response?.data
+      ? JSON.stringify(err.response.data)
+      : err.message;
+
+    console.warn("LiveAvatar stop error (non-fatal):", detail);
+
     res.json({ ok: true });
   }
+});
+
+// --- Step 4: Legacy compatibility endpoint ---
+// Kept so older frontend code does not immediately break while the
+// frontend LiveAvatar SDK migration is completed in the next step.
+router.get("/token", requireAuth, async (_req, res) => {
+  if (!process.env.HEYGEN_API_KEY) {
+    return res.status(503).json({
+      error: "HeyGen/LiveAvatar API key not configured",
+    });
+  }
+
+  return res.status(410).json({
+    error:
+      "The old HeyGen Streaming token endpoint has been replaced by the LiveAvatar session endpoint.",
+  });
+});
+
+// --- Step 5: Legacy ICE endpoint ---
+// ICE handling is now managed by the LiveAvatar Web SDK/LiveKit.
+router.post("/ice", requireAuth, async (_req, res) => {
+  return res.status(410).json({
+    error:
+      "ICE is managed automatically by the LiveAvatar Web SDK.",
+  });
+});
+
+// --- Step 6: Legacy speak endpoint ---
+// Text/avatar commands will be handled by the LiveAvatar Web SDK.
+// The frontend will use the SDK's avatar text command in the next step.
+router.post("/speak", requireAuth, async (_req, res) => {
+  return res.status(410).json({
+    error:
+      "Avatar speech is now handled by the LiveAvatar Web SDK.",
+  });
 });
 
 module.exports = router;
