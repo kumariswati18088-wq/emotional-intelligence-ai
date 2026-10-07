@@ -43,15 +43,21 @@ async function detectEmotion(text) {
         timeout: 8000,
       }
     );
+
     // Hume's batch API is async (job-based); for real-time chat, prefer
     // Hume's streaming/expression-measurement WS API in production.
     // Here we read a synchronous-style prediction shape if present,
     // otherwise fall through to the heuristic below.
     const predictions = response.data?.predictions;
+
     if (predictions?.length) {
-      const top = predictions[0]?.emotions?.sort((a, b) => b.score - a.score)[0];
+      const top = predictions[0]?.emotions?.sort(
+        (a, b) => b.score - a.score
+      )[0];
+
       if (top?.name) return normalizeEmotion(top.name);
     }
+
     return heuristicEmotion(text);
   } catch (err) {
     return heuristicEmotion(text);
@@ -70,12 +76,14 @@ function normalizeEmotion(rawName) {
     surprise: "Surprise",
     calmness: "Neutral",
   };
+
   const key = rawName.toLowerCase();
   return map[key] || rawName;
 }
 
 function heuristicEmotion(text) {
   const t = text.toLowerCase();
+
   if (/(haha|lol|lmao|funny|hilarious)/.test(t)) return "Laughing";
   if (/(sad|depressed|down|hurt|lonely|cry)/.test(t)) return "Sadness";
   if (/(crying|sobbing|tears)/.test(t)) return "Crying";
@@ -83,6 +91,7 @@ function heuristicEmotion(text) {
   if (/(scared|afraid|anxious|worried)/.test(t)) return "Fear";
   if (/(wow|omg|amazing|surprised)/.test(t)) return "Surprise";
   if (/(happy|great|excited|awesome|love)/.test(t)) return "Joy";
+
   return "Neutral";
 }
 
@@ -99,6 +108,7 @@ async function generateReply({ message, emotion, language, history = [] }) {
     ar: "Arabic",
     pt: "Portuguese",
   };
+
   const languageName = langNames[language] || "English";
 
   const systemInstruction = {
@@ -118,24 +128,38 @@ async function generateReply({ message, emotion, language, history = [] }) {
       role: h.role === "assistant" ? "model" : "user",
       parts: [{ text: h.text }],
     })),
-    { role: "user", parts: [{ text: message }] },
+    {
+      role: "user",
+      parts: [{ text: message }],
+    },
   ];
 
   const response = await axios.post(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-    { contents, systemInstruction },
-    { headers: { "Content-Type": "application/json" }, timeout: 15000 }
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    {
+      contents,
+      systemInstruction,
+    },
+    {
+      headers: {
+        "Content-Type": "application/json",
+      },
+      timeout: 15000,
+    }
   );
 
   const text =
-    response.data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") ||
-    "I'm here with you.";
+    response.data?.candidates?.[0]?.content?.parts
+      ?.map((p) => p.text)
+      .join("") || "I'm here with you.";
+
   return text.trim();
 }
 
 // --- Step 3: ElevenLabs — synthesize emotional speech ---
 async function synthesizeSpeech({ text, voiceKey, emotion }) {
-  const voiceId = resolveVoiceId(voiceKey) || resolveVoiceId("GIGI");
+  const voiceId =
+    resolveVoiceId(voiceKey) || resolveVoiceId("GIGI");
 
   // Map emotion to voice-setting nudges (stability/style) so delivery
   // shifts with the detected tone.
@@ -149,7 +173,9 @@ async function synthesizeSpeech({ text, voiceKey, emotion }) {
     Surprise: { stability: 0.35, style: 0.7 },
     Neutral: { stability: 0.5, style: 0.5 },
   };
-  const settings = emotionSettings[emotion] || emotionSettings.Neutral;
+
+  const settings =
+    emotionSettings[emotion] || emotionSettings.Neutral;
 
   const response = await axios.post(
     `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
@@ -179,11 +205,15 @@ async function synthesizeSpeech({ text, voiceKey, emotion }) {
 
 // --- Step 4: HeyGen — streaming avatar session management ---
 async function createHeygenSession(avatarKey) {
-  const avatarId = resolveAvatarId(avatarKey) || resolveAvatarId("GIRL1");
+  const avatarId =
+    resolveAvatarId(avatarKey) || resolveAvatarId("GIRL1");
 
   const response = await axios.post(
     "https://api.heygen.com/v1/streaming.new",
-    { quality: "high", avatar_name: avatarId },
+    {
+      quality: "high",
+      avatar_name: avatarId,
+    },
     {
       headers: {
         "X-Api-Key": process.env.HEYGEN_API_KEY,
@@ -192,7 +222,9 @@ async function createHeygenSession(avatarKey) {
       timeout: 15000,
     }
   );
-  return response.data?.data; // { session_id, url, access_token, ... }
+
+  return response.data?.data;
+  // { session_id, url, access_token, ... }
 }
 
 async function getHeygenStreamingToken() {
@@ -200,10 +232,13 @@ async function getHeygenStreamingToken() {
     "https://api.heygen.com/v1/streaming.create_token",
     {},
     {
-      headers: { "X-Api-Key": process.env.HEYGEN_API_KEY },
+      headers: {
+        "X-Api-Key": process.env.HEYGEN_API_KEY,
+      },
       timeout: 10000,
     }
   );
+
   return response.data?.data?.token;
 }
 
