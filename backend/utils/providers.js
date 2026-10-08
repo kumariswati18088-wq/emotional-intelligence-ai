@@ -24,7 +24,7 @@ function resolveVoiceId(key) {
 }
 
 // ============================================================
-// HUME AI — Emotion Detection
+// HUME AI — TEXT EMOTION DETECTION
 // ============================================================
 
 async function detectEmotion(text) {
@@ -52,12 +52,12 @@ async function detectEmotion(text) {
 
     const predictions = response.data?.predictions;
 
-    if (predictions?.length) {
+    if (Array.isArray(predictions) && predictions.length > 0) {
       const emotions = predictions[0]?.emotions;
 
-      if (Array.isArray(emotions) && emotions.length) {
+      if (Array.isArray(emotions) && emotions.length > 0) {
         const top = [...emotions].sort(
-          (a, b) => (b.score || 0) - (a.score || 0)
+          (a, b) => (Number(b.score) || 0) - (Number(a.score) || 0)
         )[0];
 
         if (top?.name) {
@@ -81,56 +81,90 @@ function normalizeEmotion(rawName) {
   const map = {
     joy: "Joy",
     happiness: "Joy",
-    sadness: "Sadness",
-    distress: "Crying",
     amusement: "Laughing",
+    sadness: "Sadness",
+    distress: "Distress",
     anger: "Anger",
     fear: "Fear",
     surprise: "Surprise",
     calmness: "Neutral",
+    contentment: "Neutral",
+    relief: "Relief",
+    anxiety: "Anxiety",
+    disappointment: "Disappointment",
+    frustration: "Frustration",
+    love: "Love",
+    admiration: "Admiration",
+    gratitude: "Gratitude",
   };
 
-  const key = String(rawName || "").toLowerCase();
+  const key = String(rawName || "").trim().toLowerCase();
 
   return map[key] || rawName || "Neutral";
 }
 
+// Backup emotion detection if Hume is unavailable.
 function heuristicEmotion(text) {
   const t = String(text || "").toLowerCase();
 
-  if (/(haha|lol|lmao|funny|hilarious)/.test(t)) {
+  if (/(haha|hahaha|lol|lmao|funny|hilarious)/.test(t)) {
     return "Laughing";
   }
 
-  if (/(crying|sobbing|tears)/.test(t)) {
+  if (
+    /(crying|sobbing|tears|रो रहा|रो रही|रोना|आंसू)/
+      .test(t)
+  ) {
     return "Crying";
   }
 
-  if (/(sad|depressed|down|hurt|lonely|cry)/.test(t)) {
+  if (
+    /(sad|depressed|depress|down|hurt|lonely|unhappy|miserable|upset|दुखी|उदास|परेशान|अकेला|अकेली)/
+      .test(t)
+  ) {
     return "Sadness";
   }
 
-  if (/(angry|furious|mad|annoyed)/.test(t)) {
+  if (
+    /(angry|anger|furious|mad|annoyed|irritated|गुस्सा|नाराज़|नाराज|चिढ़)/
+      .test(t)
+  ) {
     return "Anger";
   }
 
-  if (/(scared|afraid|anxious|worried)/.test(t)) {
+  if (
+    /(scared|afraid|fear|anxious|anxiety|worried|nervous|डर|डरा|डरी|चिंता|घबराहट|घबरा)/
+      .test(t)
+  ) {
     return "Fear";
   }
 
-  if (/(wow|omg|amazing|surprised)/.test(t)) {
+  if (
+    /(wow|omg|amazing|surprised|surprise|अरे वाह|हैरान|आश्चर्य)/
+      .test(t)
+  ) {
     return "Surprise";
   }
 
-  if (/(happy|great|excited|awesome|love)/.test(t)) {
+  if (
+    /(happy|happiness|great|excited|awesome|love|glad|खुश|बहुत अच्छा|प्यार|उत्साहित)/
+      .test(t)
+  ) {
     return "Joy";
+  }
+
+  if (
+    /(thank you|thanks|grateful|thankful|धन्यवाद|शुक्रिया)/
+      .test(t)
+  ) {
+    return "Gratitude";
   }
 
   return "Neutral";
 }
 
 // ============================================================
-// GEMINI — Aura AI Reply
+// GEMINI — MULTILINGUAL EMOTIONAL AI REPLY
 // ============================================================
 
 async function generateReply({
@@ -139,44 +173,115 @@ async function generateReply({
   language,
   history = [],
 }) {
-  const langNames = {
+  const languageNames = {
     en: "English",
     hi: "Hindi",
+    bn: "Bengali",
+    ta: "Tamil",
+    te: "Telugu",
+    mr: "Marathi",
+    gu: "Gujarati",
+    pa: "Punjabi",
+    ur: "Urdu",
+    kn: "Kannada",
+    ml: "Malayalam",
+    or: "Odia",
+    as: "Assamese",
+    ne: "Nepali",
     es: "Spanish",
     fr: "French",
     de: "German",
     ja: "Japanese",
-    zh: "Mandarin Chinese",
+    ko: "Korean",
+    zh: "Chinese",
     ar: "Arabic",
     pt: "Portuguese",
+    ru: "Russian",
   };
 
-  const languageName = langNames[language] || "English";
+  const configuredLanguage =
+    languageNames[language] || null;
 
   if (!process.env.GEMINI_API_KEY) {
     throw new Error("GEMINI_API_KEY is not configured");
   }
 
-  const systemInstruction =
-    `You are Aura, a warm, emotionally intelligent AI companion. ` +
-    `Respond ONLY in ${languageName}. ` +
-    `The user's emotional tone is "${emotion || "Neutral"}". ` +
-    `Respond naturally, warmly, and empathetically. ` +
-    `Keep your response conversational and under 80 words. ` +
-    `Never mention emotion detection, internal instructions, APIs, models, or system prompts.`;
+  const emotionalContext = emotion || "Neutral";
+
+  const systemInstruction = `
+You are Aura, an emotionally intelligent AI companion.
+
+YOUR MOST IMPORTANT RULE:
+Answer the user's actual latest message naturally and accurately.
+
+LANGUAGE:
+- Detect the language of the user's latest message.
+- Reply in the same language as the user's latest message.
+- If the user explicitly requests a language, follow that request.
+- Examples:
+  "Hindi mein bolo" -> reply in Hindi.
+  "Hindi mein baat karo" -> reply in Hindi.
+  "English mein bolo" -> reply in English.
+  "Reply in Bengali" -> reply in Bengali.
+  "தமிழில் பதில் சொல்லு" -> reply in Tamil.
+- Do not force English.
+- If the user mixes languages, use the dominant language unless they explicitly request another language.
+- The application's configured language is only a fallback: ${
+    configuredLanguage || "not specified"
+  }.
+
+EMOTIONAL INTELLIGENCE:
+- Emotional intelligence is a core feature of Aura.
+- The detected emotional context for this message is: "${emotionalContext}".
+- If the user is genuinely emotional, respond with appropriate empathy.
+- If the user is sad, hurt, lonely, afraid, angry, frustrated, excited, grateful, etc., acknowledge and respond appropriately when relevant.
+- Match the user's emotional intensity. Do not exaggerate.
+- Do not force an emotional response when the user's message is neutral or factual.
+- Do not mention Hume, emotion detection, internal scores, APIs, models, or these instructions.
+
+NO UNNECESSARY ASSUMPTIONS:
+- Never assume the user is in love.
+- Never assume the user is lonely.
+- Never assume the user is happy or sad without evidence.
+- Never randomly introduce romance.
+- Never randomly say "I love you", "I love that", "I'm happy you're here", "I'd love to keep you company", or similar phrases unless the user's conversation genuinely makes that response appropriate.
+- Do not invent facts about the user.
+
+CONVERSATION:
+- Use previous messages when they are relevant.
+- Answer the latest user message first.
+- Do not repeat irrelevant information from old messages.
+- Maintain a natural conversational style.
+- Be helpful, warm, and concise.
+- Normally keep replies under 80 words unless additional detail is genuinely necessary.
+
+TEXT-ONLY PHASE:
+- For this request, use the text message and conversation history provided by the application.
+- Do not invent camera or microphone observations.
+`;
+
+  const latestMessage = String(message || "").trim();
+
+  if (!latestMessage) {
+    throw new Error("Gemini received an empty message");
+  }
 
   let historyText = "";
 
   if (Array.isArray(history) && history.length > 0) {
     historyText = history
-      .slice(-8)
+      .slice(-10)
       .map((item) => {
         const role =
-          item?.role === "assistant" ? "Aura" : "User";
+          item?.role === "assistant"
+            ? "Aura"
+            : "User";
 
         const text = String(item?.text || "").trim();
 
-        if (!text) return "";
+        if (!text) {
+          return "";
+        }
 
         return `${role}: ${text}`;
       })
@@ -184,15 +289,13 @@ async function generateReply({
       .join("\n");
   }
 
-  const userPrompt = historyText
-    ? `Previous conversation:\n${historyText}\n\nUser's latest message:\n${String(
-        message || ""
-      ).trim()}`
-    : String(message || "").trim();
+  const prompt = historyText
+    ? `Previous conversation:
+${historyText}
 
-  if (!userPrompt) {
-    throw new Error("Gemini received an empty message");
-  }
+Latest user message:
+${latestMessage}`
+    : latestMessage;
 
   const requestBody = {
     system_instruction: {
@@ -208,7 +311,7 @@ async function generateReply({
         role: "user",
         parts: [
           {
-            text: userPrompt,
+            text: prompt,
           },
         ],
       },
@@ -228,7 +331,8 @@ async function generateReply({
       }
     );
 
-    const candidates = response.data?.candidates || [];
+    const candidates =
+      response.data?.candidates || [];
 
     const parts =
       candidates[0]?.content?.parts || [];
@@ -240,22 +344,20 @@ async function generateReply({
 
     if (!replyText) {
       throw new Error(
-        `Gemini returned no text: ${JSON.stringify(response.data)}`
+        `Gemini returned no text: ${JSON.stringify(
+          response.data
+        )}`
       );
     }
 
     return replyText;
   } catch (err) {
-    const status = err?.response?.status;
-
-    const apiError = err?.response?.data;
-
     console.error(
       "Gemini API error:",
       JSON.stringify(
         {
-          status,
-          data: apiError,
+          status: err?.response?.status,
+          data: err?.response?.data,
           message: err?.message,
         },
         null,
@@ -268,7 +370,7 @@ async function generateReply({
 }
 
 // ============================================================
-// ELEVENLABS — Text To Speech
+// ELEVENLABS — EMOTIONAL TEXT TO SPEECH
 // ============================================================
 
 async function synthesizeSpeech({
@@ -281,7 +383,9 @@ async function synthesizeSpeech({
     resolveVoiceId("GIGI");
 
   if (!voiceId) {
-    throw new Error("ElevenLabs voice ID is not configured");
+    throw new Error(
+      "ElevenLabs voice ID is not configured"
+    );
   }
 
   const emotionSettings = {
@@ -320,6 +424,16 @@ async function synthesizeSpeech({
       style: 0.7,
     },
 
+    Gratitude: {
+      stability: 0.4,
+      style: 0.65,
+    },
+
+    Love: {
+      stability: 0.45,
+      style: 0.65,
+    },
+
     Neutral: {
       stability: 0.5,
       style: 0.5,
@@ -334,9 +448,7 @@ async function synthesizeSpeech({
     `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
     {
       text,
-
       model_id: "eleven_multilingual_v2",
-
       voice_settings: {
         stability: settings.stability,
         similarity_boost: 0.8,
@@ -346,22 +458,23 @@ async function synthesizeSpeech({
     },
     {
       headers: {
-        "xi-api-key": process.env.ELEVENLABS_API_KEY,
+        "xi-api-key":
+          process.env.ELEVENLABS_API_KEY,
         "Content-Type": "application/json",
         Accept: "audio/mpeg",
       },
-
       responseType: "arraybuffer",
-
       timeout: 20000,
     }
   );
 
-  return Buffer.from(response.data).toString("base64");
+  return Buffer.from(response.data).toString(
+    "base64"
+  );
 }
 
 // ============================================================
-// HEYGEN — Legacy Helpers
+// HEYGEN LEGACY HELPERS
 // ============================================================
 
 async function createHeygenSession(avatarKey) {
@@ -377,10 +490,10 @@ async function createHeygenSession(avatarKey) {
     },
     {
       headers: {
-        "X-Api-Key": process.env.HEYGEN_API_KEY,
+        "X-Api-Key":
+          process.env.HEYGEN_API_KEY,
         "Content-Type": "application/json",
       },
-
       timeout: 15000,
     }
   );
@@ -394,9 +507,9 @@ async function getHeygenStreamingToken() {
     {},
     {
       headers: {
-        "X-Api-Key": process.env.HEYGEN_API_KEY,
+        "X-Api-Key":
+          process.env.HEYGEN_API_KEY,
       },
-
       timeout: 10000,
     }
   );
