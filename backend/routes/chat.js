@@ -1,6 +1,7 @@
 const express = require("express");
 const rateLimit = require("express-rate-limit");
 const { requireAuth } = require("../middleware/auth");
+
 const {
   detectEmotion,
   generateReply,
@@ -25,11 +26,25 @@ router.post("/", requireAuth, chatLimiter, async (req, res) => {
     });
   }
 
+  let stage = "starting";
+
   try {
-    // Step 1: Detect emotion.
+    // ============================================================
+    // STEP 1 — HUME EMOTION
+    // ============================================================
+
+    stage = "Hume emotion detection";
+
     const emotion = await detectEmotion(message);
 
-    // Step 2: Generate AI reply.
+    console.log("CHAT STEP 1 OK — Hume:", emotion);
+
+    // ============================================================
+    // STEP 2 — GEMINI REPLY
+    // ============================================================
+
+    stage = "Gemini reply generation";
+
     const replyText = await generateReply({
       message,
       emotion,
@@ -37,21 +52,38 @@ router.post("/", requireAuth, chatLimiter, async (req, res) => {
       history: Array.isArray(history) ? history : [],
     });
 
-    // Step 3: TTS is optional.
+    console.log("CHAT STEP 2 OK — Gemini reply generated");
+
+    // ============================================================
+    // STEP 3 — ELEVENLABS TTS
+    // ============================================================
+
     let audioBase64 = null;
 
     try {
+      stage = "ElevenLabs TTS";
+
       audioBase64 = await synthesizeSpeech({
         text: replyText,
         voiceKey: voice || "GIGI",
         emotion,
       });
+
+      console.log("CHAT STEP 3 OK — ElevenLabs TTS");
     } catch (ttsErr) {
       console.warn(
-        "TTS failed (non-fatal):",
-        ttsErr?.response?.data || ttsErr?.message || ttsErr
+        "CHAT STEP 3 FAILED — TTS is non-fatal:",
+        ttsErr?.response?.data ||
+          ttsErr?.message ||
+          ttsErr
       );
+
+      audioBase64 = null;
     }
+
+    // ============================================================
+    // SUCCESS
+    // ============================================================
 
     return res.json({
       emotion,
@@ -61,17 +93,31 @@ router.post("/", requireAuth, chatLimiter, async (req, res) => {
         : null,
     });
   } catch (err) {
-    const upstreamError =
-      err?.response?.data ||
-      err?.response?.statusText ||
-      err?.message ||
-      "Unknown error";
+    const status = err?.response?.status || null;
 
-    console.error("Chat pipeline error:", upstreamError);
+    const providerError =
+      err?.response?.data ||
+      err?.message ||
+      String(err);
+
+    console.error("================================");
+    console.error("CHAT PIPELINE FAILED");
+    console.error("FAILED STAGE:", stage);
+    console.error("HTTP STATUS:", status);
+    console.error(
+      "PROVIDER ERROR:",
+      JSON.stringify(providerError, null, 2)
+    );
+    console.error("================================");
 
     return res.status(502).json({
       error: "AI pipeline failed.",
-      detail: upstreamError,
+      stage,
+      providerStatus: status,
+      detail:
+        typeof providerError === "string"
+          ? providerError
+          : JSON.stringify(providerError),
     });
   }
 });
