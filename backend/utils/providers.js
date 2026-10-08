@@ -270,7 +270,7 @@ TEXT-ONLY PHASE:
 
   if (Array.isArray(history) && history.length > 0) {
     historyText = history
-      .slice(-10)
+      .slice(-50)
       .map((item) => {
         const role =
           item?.role === "assistant"
