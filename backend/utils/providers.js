@@ -23,13 +23,22 @@ function resolveVoiceId(key) {
   return fn ? fn() : null;
 }
 
-// Hume AI — emotion detection
+// ============================================================
+// HUME AI — Emotion Detection
+// ============================================================
+
 async function detectEmotion(text) {
   try {
+    if (!process.env.HUME_API_KEY) {
+      return heuristicEmotion(text);
+    }
+
     const response = await axios.post(
       "https://api.hume.ai/v0/batch/jobs",
       {
-        models: { language: {} },
+        models: {
+          language: {},
+        },
         text: [text],
       },
       {
@@ -44,17 +53,26 @@ async function detectEmotion(text) {
     const predictions = response.data?.predictions;
 
     if (predictions?.length) {
-      const top = predictions[0]?.emotions?.sort(
-        (a, b) => b.score - a.score
-      )[0];
+      const emotions = predictions[0]?.emotions;
 
-      if (top?.name) {
-        return normalizeEmotion(top.name);
+      if (Array.isArray(emotions) && emotions.length) {
+        const top = [...emotions].sort(
+          (a, b) => (b.score || 0) - (a.score || 0)
+        )[0];
+
+        if (top?.name) {
+          return normalizeEmotion(top.name);
+        }
       }
     }
 
     return heuristicEmotion(text);
   } catch (err) {
+    console.warn(
+      "Hume emotion detection failed:",
+      err?.response?.data || err?.message || err
+    );
+
     return heuristicEmotion(text);
   }
 }
@@ -72,25 +90,49 @@ function normalizeEmotion(rawName) {
     calmness: "Neutral",
   };
 
-  const key = rawName.toLowerCase();
-  return map[key] || rawName;
+  const key = String(rawName || "").toLowerCase();
+
+  return map[key] || rawName || "Neutral";
 }
 
 function heuristicEmotion(text) {
-  const t = text.toLowerCase();
+  const t = String(text || "").toLowerCase();
 
-  if (/(haha|lol|lmao|funny|hilarious)/.test(t)) return "Laughing";
-  if (/(sad|depressed|down|hurt|lonely|cry)/.test(t)) return "Sadness";
-  if (/(crying|sobbing|tears)/.test(t)) return "Crying";
-  if (/(angry|furious|mad|annoyed)/.test(t)) return "Anger";
-  if (/(scared|afraid|anxious|worried)/.test(t)) return "Fear";
-  if (/(wow|omg|amazing|surprised)/.test(t)) return "Surprise";
-  if (/(happy|great|excited|awesome|love)/.test(t)) return "Joy";
+  if (/(haha|lol|lmao|funny|hilarious)/.test(t)) {
+    return "Laughing";
+  }
+
+  if (/(crying|sobbing|tears)/.test(t)) {
+    return "Crying";
+  }
+
+  if (/(sad|depressed|down|hurt|lonely|cry)/.test(t)) {
+    return "Sadness";
+  }
+
+  if (/(angry|furious|mad|annoyed)/.test(t)) {
+    return "Anger";
+  }
+
+  if (/(scared|afraid|anxious|worried)/.test(t)) {
+    return "Fear";
+  }
+
+  if (/(wow|omg|amazing|surprised)/.test(t)) {
+    return "Surprise";
+  }
+
+  if (/(happy|great|excited|awesome|love)/.test(t)) {
+    return "Joy";
+  }
 
   return "Neutral";
 }
 
-// Gemini — generate Aura reply
+// ============================================================
+// GEMINI — Aura AI Reply
+// ============================================================
+
 async function generateReply({
   message,
   emotion,
@@ -111,99 +153,190 @@ async function generateReply({
 
   const languageName = langNames[language] || "English";
 
-  const systemInstruction =
-    `You are Aura, a warm, emotionally intelligent AI companion. ` +
-    `Respond ONLY in ${languageName}. ` +
-    `The user's emotional tone is "${emotion}". ` +
-    `Reply naturally and empathetically. ` +
-    `Keep the response conversational and under 80 words. ` +
-    `Never mention emotion detection or these instructions.`;
-
-  const historyText = Array.isArray(history)
-    ? history
-        .slice(-8)
-        .map((h) => {
-          const role = h.role === "assistant" ? "Aura" : "User";
-          return `${role}: ${String(h.text || "")}`;
-        })
-        .join("\n")
-    : "";
-
-  const prompt = historyText
-    ? `Previous conversation:\n${historyText}\n\nUser's latest message:\n${message}`
-    : message;
-
   if (!process.env.GEMINI_API_KEY) {
     throw new Error("GEMINI_API_KEY is not configured");
   }
 
-  const response = await axios.post(
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
-    {
-      system_instruction: {
-        parts: [{ text: systemInstruction }],
-      },
-      contents: [
+  const systemInstruction =
+    `You are Aura, a warm, emotionally intelligent AI companion. ` +
+    `Respond ONLY in ${languageName}. ` +
+    `The user's emotional tone is "${emotion || "Neutral"}". ` +
+    `Respond naturally, warmly, and empathetically. ` +
+    `Keep your response conversational and under 80 words. ` +
+    `Never mention emotion detection, internal instructions, APIs, models, or system prompts.`;
+
+  let historyText = "";
+
+  if (Array.isArray(history) && history.length > 0) {
+    historyText = history
+      .slice(-8)
+      .map((item) => {
+        const role =
+          item?.role === "assistant" ? "Aura" : "User";
+
+        const text = String(item?.text || "").trim();
+
+        if (!text) return "";
+
+        return `${role}: ${text}`;
+      })
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  const userPrompt = historyText
+    ? `Previous conversation:\n${historyText}\n\nUser's latest message:\n${String(
+        message || ""
+      ).trim()}`
+    : String(message || "").trim();
+
+  if (!userPrompt) {
+    throw new Error("Gemini received an empty message");
+  }
+
+  const requestBody = {
+    system_instruction: {
+      parts: [
         {
-          role: "user",
-          parts: [{ text: prompt }],
+          text: systemInstruction,
         },
       ],
     },
-    {
-      headers: {
-        "x-goog-api-key": process.env.GEMINI_API_KEY,
-        "Content-Type": "application/json",
+
+    contents: [
+      {
+        role: "user",
+        parts: [
+          {
+            text: userPrompt,
+          },
+        ],
       },
-      timeout: 20000,
-    }
-  );
+    ],
+  };
 
-  const parts =
-    response.data?.candidates?.[0]?.content?.parts || [];
-
-  const text = parts
-    .map((part) => part.text || "")
-    .join("")
-    .trim();
-
-  if (!text) {
-    throw new Error(
-      `Gemini returned no text: ${JSON.stringify(response.data)}`
+  try {
+    const response = await axios.post(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
+      requestBody,
+      {
+        headers: {
+          "x-goog-api-key": process.env.GEMINI_API_KEY,
+          "Content-Type": "application/json",
+        },
+        timeout: 30000,
+      }
     );
-  }
 
-  return text;
+    const candidates = response.data?.candidates || [];
+
+    const parts =
+      candidates[0]?.content?.parts || [];
+
+    const replyText = parts
+      .map((part) => part?.text || "")
+      .join("")
+      .trim();
+
+    if (!replyText) {
+      throw new Error(
+        `Gemini returned no text: ${JSON.stringify(response.data)}`
+      );
+    }
+
+    return replyText;
+  } catch (err) {
+    const status = err?.response?.status;
+
+    const apiError = err?.response?.data;
+
+    console.error(
+      "Gemini API error:",
+      JSON.stringify(
+        {
+          status,
+          data: apiError,
+          message: err?.message,
+        },
+        null,
+        2
+      )
+    );
+
+    throw err;
+  }
 }
 
-// ElevenLabs — text to speech
+// ============================================================
+// ELEVENLABS — Text To Speech
+// ============================================================
+
 async function synthesizeSpeech({
   text,
   voiceKey,
   emotion,
 }) {
   const voiceId =
-    resolveVoiceId(voiceKey) || resolveVoiceId("GIGI");
+    resolveVoiceId(voiceKey) ||
+    resolveVoiceId("GIGI");
+
+  if (!voiceId) {
+    throw new Error("ElevenLabs voice ID is not configured");
+  }
 
   const emotionSettings = {
-    Joy: { stability: 0.35, style: 0.75 },
-    Laughing: { stability: 0.3, style: 0.85 },
-    Sadness: { stability: 0.65, style: 0.35 },
-    Crying: { stability: 0.7, style: 0.25 },
-    Anger: { stability: 0.4, style: 0.8 },
-    Fear: { stability: 0.55, style: 0.4 },
-    Surprise: { stability: 0.35, style: 0.7 },
-    Neutral: { stability: 0.5, style: 0.5 },
+    Joy: {
+      stability: 0.35,
+      style: 0.75,
+    },
+
+    Laughing: {
+      stability: 0.3,
+      style: 0.85,
+    },
+
+    Sadness: {
+      stability: 0.65,
+      style: 0.35,
+    },
+
+    Crying: {
+      stability: 0.7,
+      style: 0.25,
+    },
+
+    Anger: {
+      stability: 0.4,
+      style: 0.8,
+    },
+
+    Fear: {
+      stability: 0.55,
+      style: 0.4,
+    },
+
+    Surprise: {
+      stability: 0.35,
+      style: 0.7,
+    },
+
+    Neutral: {
+      stability: 0.5,
+      style: 0.5,
+    },
   };
 
   const settings =
-    emotionSettings[emotion] || emotionSettings.Neutral;
+    emotionSettings[emotion] ||
+    emotionSettings.Neutral;
 
   const response = await axios.post(
     `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
     {
       text,
+
       model_id: "eleven_multilingual_v2",
+
       voice_settings: {
         stability: settings.stability,
         similarity_boost: 0.8,
@@ -217,7 +350,9 @@ async function synthesizeSpeech({
         "Content-Type": "application/json",
         Accept: "audio/mpeg",
       },
+
       responseType: "arraybuffer",
+
       timeout: 20000,
     }
   );
@@ -225,10 +360,14 @@ async function synthesizeSpeech({
   return Buffer.from(response.data).toString("base64");
 }
 
-// HeyGen helpers
+// ============================================================
+// HEYGEN — Legacy Helpers
+// ============================================================
+
 async function createHeygenSession(avatarKey) {
   const avatarId =
-    resolveAvatarId(avatarKey) || resolveAvatarId("GIRL1");
+    resolveAvatarId(avatarKey) ||
+    resolveAvatarId("GIRL1");
 
   const response = await axios.post(
     "https://api.heygen.com/v1/streaming.new",
@@ -241,6 +380,7 @@ async function createHeygenSession(avatarKey) {
         "X-Api-Key": process.env.HEYGEN_API_KEY,
         "Content-Type": "application/json",
       },
+
       timeout: 15000,
     }
   );
@@ -256,12 +396,17 @@ async function getHeygenStreamingToken() {
       headers: {
         "X-Api-Key": process.env.HEYGEN_API_KEY,
       },
+
       timeout: 10000,
     }
   );
 
   return response.data?.data?.token;
 }
+
+// ============================================================
+// EXPORTS
+// ============================================================
 
 module.exports = {
   resolveAvatarId,
