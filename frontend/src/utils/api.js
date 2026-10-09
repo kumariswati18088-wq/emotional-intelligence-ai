@@ -19,10 +19,15 @@ async function request(path, { method = "GET", body, token } = {}) {
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    throw new Error(
-      data.error || `Request failed (${res.status})`
-    );
-  }
+  const detail = [
+    data.error,
+    data.stage ? `Stage: ${data.stage}` : "",
+    data.providerStatus ? `Status: ${data.providerStatus}` : "",
+    data.detail || "",
+  ].filter(Boolean).join(" | ");
+
+  throw new Error(detail || `Request failed (${res.status})`);
+}
 
   return data;
 }
