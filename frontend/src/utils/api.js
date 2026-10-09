@@ -10,24 +10,41 @@ async function request(path, { method = "GET", body, token } = {}) {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${BASE}${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
+  let res;
+
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err?.name === "AbortError") {
+      throw new Error("The request took too long. Please try again.");
+    }
+
+    throw new Error("Could not reach Aura's backend. Check your internet connection and try again.");
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-  const detail = [
-    data.error,
-    data.stage ? `Stage: ${data.stage}` : "",
-    data.providerStatus ? `Status: ${data.providerStatus}` : "",
-    data.detail || "",
-  ].filter(Boolean).join(" | ");
+    const detail = [
+      data.error,
+      data.stage ? `Stage: ${data.stage}` : "",
+      data.providerStatus ? `Provider status: ${data.providerStatus}` : "",
+      data.detail && data.detail !== data.error ? data.detail : "",
+    ]
+      .filter(Boolean)
+      .join(" | ");
 
-  throw new Error(detail || `Request failed (${res.status})`);
-}
+    throw new Error(detail || `Request failed (${res.status})`);
+  }
 
   return data;
 }
