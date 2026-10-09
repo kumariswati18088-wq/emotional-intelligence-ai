@@ -247,8 +247,18 @@ TEXT-ONLY PHASE:
   let historyText = "";
 
   if (Array.isArray(history) && history.length > 0) {
-    historyText = history
-      .slice(-50)
+    // Keep at most 50 recent messages and avoid duplicating the latest user message.
+    const historyItems = history.slice(-50);
+    const lastHistoryItem = historyItems[historyItems.length - 1];
+
+    if (
+      lastHistoryItem?.role === "user" &&
+      String(lastHistoryItem?.text || "").trim() === latestMessage
+    ) {
+      historyItems.pop();
+    }
+
+    historyText = historyItems
       .map((item) => {
         const role =
           item?.role === "assistant" ? "Aura" : "User";
@@ -293,7 +303,7 @@ ${latestMessage}`
     ],
   };
 
-  // Gemini: limited retry for temporary overload/server errors.
+  // Retry only temporary server/network failures; a 429 quota error will not improve by retrying.
   let lastError;
 
   for (let attempt = 1; attempt <= 2; attempt++) {
@@ -306,7 +316,7 @@ ${latestMessage}`
             "x-goog-api-key": process.env.GEMINI_API_KEY,
             "Content-Type": "application/json",
           },
-          timeout: 12000,
+          timeout: 25000,
         }
       );
 
@@ -327,10 +337,15 @@ ${latestMessage}`
       lastError = err;
 
       const status = err?.response?.status;
-      const retryable = [429, 500, 502, 503, 504].includes(status);
+      const isNetworkTimeout = !status && (
+        err?.code === "ECONNABORTED" ||
+        err?.code === "ETIMEDOUT" ||
+        /timeout/i.test(err?.message || "")
+      );
+      const retryable = [500, 502, 503, 504].includes(status) || isNetworkTimeout;
 
       if (attempt === 1 && retryable) {
-        await new Promise((resolve) => setTimeout(resolve, 700));
+        await new Promise((resolve) => setTimeout(resolve, 500));
         continue;
       }
 
