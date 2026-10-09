@@ -206,8 +206,9 @@ export default function App() {
             <audio
               src={pendingSpeech.audio}
               autoPlay
-              muted
-              hidden
+              controls
+              aria-label="Aura voice reply"
+              className="w-full max-w-md mt-3"
             />
           )}
         </div>
