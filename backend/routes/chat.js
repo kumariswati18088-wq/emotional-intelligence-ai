@@ -110,16 +110,21 @@ router.post("/", requireAuth, chatLimiter, async (req, res) => {
     );
     console.error("================================");
 
-    return res.status(502).json({
-      
-error: `AI pipeline failed at ${stage}. HTTP status: ${status || "unknown"}. Details: ${typeof providerError === "string" ? providerError : JSON.stringify(providerError)}`,
+    const providerDetail =
+      typeof providerError === "string"
+        ? providerError
+        : JSON.stringify(providerError);
 
+    const quotaMessage =
+      status === 429
+        ? "The AI provider quota/rate limit has been reached. Please wait for the quota to reset or check the Gemini API plan."
+        : `AI pipeline failed at ${stage}. HTTP status: ${status || "unknown"}.`;
+
+    return res.status(status === 429 ? 429 : 502).json({
+      error: quotaMessage,
       stage,
       providerStatus: status,
-      detail:
-        typeof providerError === "string"
-          ? providerError
-          : JSON.stringify(providerError),
+      detail: providerDetail,
     });
   }
 });
