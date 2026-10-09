@@ -111,52 +111,31 @@ function heuristicEmotion(text) {
     return "Laughing";
   }
 
-  if (
-    /(crying|sobbing|tears|रो रहा|रो रही|रोना|आंसू)/
-      .test(t)
-  ) {
+  if (/(crying|sobbing|tears|रो रहा|रो रही|रोना|आंसू)/.test(t)) {
     return "Crying";
   }
 
-  if (
-    /(sad|depressed|depress|down|hurt|lonely|unhappy|miserable|upset|दुखी|उदास|परेशान|अकेला|अकेली)/
-      .test(t)
-  ) {
+  if (/(sad|depressed|depress|down|hurt|lonely|unhappy|miserable|upset|दुखी|उदास|परेशान|अकेला|अकेली)/.test(t)) {
     return "Sadness";
   }
 
-  if (
-    /(angry|anger|furious|mad|annoyed|irritated|गुस्सा|नाराज़|नाराज|चिढ़)/
-      .test(t)
-  ) {
+  if (/(angry|anger|furious|mad|annoyed|irritated|गुस्सा|नाराज़|नाराज|चिढ़)/.test(t)) {
     return "Anger";
   }
 
-  if (
-    /(scared|afraid|fear|anxious|anxiety|worried|nervous|डर|डरा|डरी|चिंता|घबराहट|घबरा)/
-      .test(t)
-  ) {
+  if (/(scared|afraid|fear|anxious|anxiety|worried|nervous|डर|डरा|डरी|चिंता|घबराहट|घबरा)/.test(t)) {
     return "Fear";
   }
 
-  if (
-    /(wow|omg|amazing|surprised|surprise|अरे वाह|हैरान|आश्चर्य)/
-      .test(t)
-  ) {
+  if (/(wow|omg|amazing|surprised|surprise|अरे वाह|हैरान|आश्चर्य)/.test(t)) {
     return "Surprise";
   }
 
-  if (
-    /(happy|happiness|great|excited|awesome|love|glad|खुश|बहुत अच्छा|प्यार|उत्साहित)/
-      .test(t)
-  ) {
+  if (/(happy|happiness|great|excited|awesome|love|glad|खुश|बहुत अच्छा|प्यार|उत्साहित)/.test(t)) {
     return "Joy";
   }
 
-  if (
-    /(thank you|thanks|grateful|thankful|धन्यवाद|शुक्रिया)/
-      .test(t)
-  ) {
+  if (/(thank you|thanks|grateful|thankful|धन्यवाद|शुक्रिया)/.test(t)) {
     return "Gratitude";
   }
 
@@ -199,8 +178,7 @@ async function generateReply({
     ru: "Russian",
   };
 
-  const configuredLanguage =
-    languageNames[language] || null;
+  const configuredLanguage = languageNames[language] || null;
 
   if (!process.env.GEMINI_API_KEY) {
     throw new Error("GEMINI_API_KEY is not configured");
@@ -273,9 +251,7 @@ TEXT-ONLY PHASE:
       .slice(-50)
       .map((item) => {
         const role =
-          item?.role === "assistant"
-            ? "Aura"
-            : "User";
+          item?.role === "assistant" ? "Aura" : "User";
 
         const text = String(item?.text || "").trim();
 
@@ -305,7 +281,6 @@ ${latestMessage}`
         },
       ],
     },
-
     contents: [
       {
         role: "user",
@@ -318,55 +293,66 @@ ${latestMessage}`
     ],
   };
 
-  try {
-    const response = await axios.post(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
-      requestBody,
-      {
-        headers: {
-          "x-goog-api-key": process.env.GEMINI_API_KEY,
-          "Content-Type": "application/json",
-        },
-        timeout: 30000,
-      }
-    );
+  // Gemini: limited retry for temporary overload/server errors.
+  let lastError;
 
-    const candidates =
-      response.data?.candidates || [];
-
-    const parts =
-      candidates[0]?.content?.parts || [];
-
-    const replyText = parts
-      .map((part) => part?.text || "")
-      .join("")
-      .trim();
-
-    if (!replyText) {
-      throw new Error(
-        `Gemini returned no text: ${JSON.stringify(
-          response.data
-        )}`
-      );
-    }
-
-    return replyText;
-  } catch (err) {
-    console.error(
-      "Gemini API error:",
-      JSON.stringify(
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const response = await axios.post(
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
+        requestBody,
         {
-          status: err?.response?.status,
-          data: err?.response?.data,
-          message: err?.message,
-        },
-        null,
-        2
-      )
-    );
+          headers: {
+            "x-goog-api-key": process.env.GEMINI_API_KEY,
+            "Content-Type": "application/json",
+          },
+          timeout: 12000,
+        }
+      );
 
-    throw err;
+      const candidates = response.data?.candidates || [];
+      const parts = candidates[0]?.content?.parts || [];
+
+      const replyText = parts
+        .map((part) => part?.text || "")
+        .join("")
+        .trim();
+
+      if (!replyText) {
+        throw new Error("Gemini returned no text");
+      }
+
+      return replyText;
+    } catch (err) {
+      lastError = err;
+
+      const status = err?.response?.status;
+      const retryable = [429, 500, 502, 503, 504].includes(status);
+
+      if (attempt === 1 && retryable) {
+        await new Promise((resolve) => setTimeout(resolve, 700));
+        continue;
+      }
+
+      console.error(
+        "Gemini API error:",
+        JSON.stringify(
+          {
+            status,
+            data: err?.response?.data,
+            message: err?.message,
+            attempt,
+          },
+          null,
+          2
+        )
+      );
+
+      throw err;
+    }
   }
+
+  throw lastError || new Error("Gemini request failed");
 }
 
 // ============================================================
@@ -383,61 +369,20 @@ async function synthesizeSpeech({
     resolveVoiceId("GIGI");
 
   if (!voiceId) {
-    throw new Error(
-      "ElevenLabs voice ID is not configured"
-    );
+    throw new Error("ElevenLabs voice ID is not configured");
   }
 
   const emotionSettings = {
-    Joy: {
-      stability: 0.35,
-      style: 0.75,
-    },
-
-    Laughing: {
-      stability: 0.3,
-      style: 0.85,
-    },
-
-    Sadness: {
-      stability: 0.65,
-      style: 0.35,
-    },
-
-    Crying: {
-      stability: 0.7,
-      style: 0.25,
-    },
-
-    Anger: {
-      stability: 0.4,
-      style: 0.8,
-    },
-
-    Fear: {
-      stability: 0.55,
-      style: 0.4,
-    },
-
-    Surprise: {
-      stability: 0.35,
-      style: 0.7,
-    },
-
-    Gratitude: {
-      stability: 0.4,
-      style: 0.65,
-    },
-
-    Love: {
-      stability: 0.45,
-      style: 0.65,
-    },
-
-    Neutral: {
-      stability: 0.5,
-      style: 0.5,
-    },
+    Joy: { stability: 0.35, style: 0.75 },
+    Laughing: { stability: 0.3, style: 0.85 },
+    Sadness: { stability: 0.65, style: 0.35 },
+    Crying: { stability: 0.7, style: 0.25 },
+    Anger: { stability: 0.4, style: 0.8 },
+    Fear: { stability: 0.55, style: 0.4 },
+    Surprise: { stability: 0.35, style: 0.7 },
+    Gratitude: { stability: 0.4, style: 0.65 },
+    Love: { stability: 0.45, style: 0.65 },
+    Neutral: { stability: 0.5, style: 0.5 },
   };
 
   const settings =
@@ -458,8 +403,7 @@ async function synthesizeSpeech({
     },
     {
       headers: {
-        "xi-api-key":
-          process.env.ELEVENLABS_API_KEY,
+        "xi-api-key": process.env.ELEVENLABS_API_KEY,
         "Content-Type": "application/json",
         Accept: "audio/mpeg",
       },
@@ -468,9 +412,7 @@ async function synthesizeSpeech({
     }
   );
 
-  return Buffer.from(response.data).toString(
-    "base64"
-  );
+  return Buffer.from(response.data).toString("base64");
 }
 
 // ============================================================
@@ -490,8 +432,7 @@ async function createHeygenSession(avatarKey) {
     },
     {
       headers: {
-        "X-Api-Key":
-          process.env.HEYGEN_API_KEY,
+        "X-Api-Key": process.env.HEYGEN_API_KEY,
         "Content-Type": "application/json",
       },
       timeout: 15000,
@@ -507,8 +448,7 @@ async function getHeygenStreamingToken() {
     {},
     {
       headers: {
-        "X-Api-Key":
-          process.env.HEYGEN_API_KEY,
+        "X-Api-Key": process.env.HEYGEN_API_KEY,
       },
       timeout: 10000,
     }
