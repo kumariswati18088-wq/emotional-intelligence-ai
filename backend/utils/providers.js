@@ -303,66 +303,53 @@ ${latestMessage}`
     ],
   };
 
-  // Retry only temporary server/network failures; a 429 quota error will not improve by retrying.
+  // Try the configured model first, then a stable fallback if Gemini is overloaded
+  // or the primary model is unavailable. A fallback can also help if one model's
+  // free-tier quota is exhausted.
+  const models = ["gemini-3.8-flash", "gemini-2.5-flash"];
   let lastError;
 
-  for (let attempt = 1; attempt <= 2; attempt++) {
+  for (const model of models) {
     try {
       const response = await axios.post(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
         requestBody,
         {
           headers: {
             "x-goog-api-key": process.env.GEMINI_API_KEY,
             "Content-Type": "application/json",
           },
-          timeout: 25000,
+          timeout: 18000,
         }
       );
 
       const candidates = response.data?.candidates || [];
       const parts = candidates[0]?.content?.parts || [];
-
       const replyText = parts
         .map((part) => part?.text || "")
         .join("")
         .trim();
 
       if (!replyText) {
-        throw new Error("Gemini returned no text");
+        throw new Error(`Gemini model ${model} returned no text`);
       }
 
+      console.log("Gemini reply generated with model:", model);
       return replyText;
     } catch (err) {
       lastError = err;
-
       const status = err?.response?.status;
-      const isNetworkTimeout = !status && (
-        err?.code === "ECONNABORTED" ||
-        err?.code === "ETIMEDOUT" ||
-        /timeout/i.test(err?.message || "")
-      );
-      const retryable = [500, 502, 503, 504].includes(status) || isNetworkTimeout;
+      const retryable = [400, 404, 429, 500, 502, 503, 504].includes(status) ||
+        (!status && (
+          err?.code === "ECONNABORTED" ||
+          err?.code === "ETIMEDOUT" ||
+          /timeout/i.test(err?.message || "")
+        ));
 
-      if (attempt === 1 && retryable) {
-        await new Promise((resolve) => setTimeout(resolve, 500));
+      console.error("Gemini model failed:", model, "status:", status || "network", err?.message || "");
+      if (model !== models[models.length - 1] && retryable) {
         continue;
       }
-
-      console.error(
-        "Gemini API error:",
-        JSON.stringify(
-          {
-            status,
-            data: err?.response?.data,
-            message: err?.message,
-            attempt,
-          },
-          null,
-          2
-        )
-      );
-
       throw err;
     }
   }
