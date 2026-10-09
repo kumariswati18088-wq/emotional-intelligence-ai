@@ -111,7 +111,9 @@ router.post("/", requireAuth, chatLimiter, async (req, res) => {
     console.error("================================");
 
     return res.status(502).json({
-      error: "AI pipeline failed.",
+      
+error: `AI pipeline failed at ${stage}. HTTP status: ${status || "unknown"}. Details: ${typeof providerError === "string" ? providerError : JSON.stringify(providerError)}`,
+
       stage,
       providerStatus: status,
       detail:
