@@ -27,6 +27,9 @@ export default function ChatBox({
   const imageInputRef = useRef(null);
   const videoInputRef = useRef(null);
   const docInputRef = useRef(null);
+  const recognitionRef = useRef(null);
+  const [listening, setListening] = useState(false);
+  const [voiceError, setVoiceError] = useState("");
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -52,6 +55,49 @@ export default function ChatBox({
     }
 
     e.target.value = "";
+  }
+
+  function toggleVoiceInput() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setVoiceError("Voice input is not supported by this browser. Try Chrome on Android.");
+      return;
+    }
+    if (recognitionRef.current && listening) {
+      recognitionRef.current.stop();
+      setListening(false);
+      return;
+    }
+    setVoiceError("");
+    const recognition = new SpeechRecognition();
+    recognition.lang = ({
+      hi: "hi-IN", en: "en-US", bn: "bn-IN", ta: "ta-IN",
+      te: "te-IN", mr: "mr-IN", gu: "gu-IN", pa: "pa-IN",
+      ur: "ur-IN", kn: "kn-IN", ml: "ml-IN", or: "or-IN",
+    })[language] || language || "en-US";
+    recognition.interimResults = true;
+    recognition.continuous = false;
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results)
+        .map((result) => result[0]?.transcript || "")
+        .join(" ").trim();
+      if (transcript) setInput(transcript);
+    };
+    recognition.onerror = (event) => {
+      setVoiceError(event.error === "not-allowed"
+        ? "Allow microphone access in your browser to use voice input."
+        : "Voice input stopped. Please try again.");
+      setListening(false);
+    };
+    recognition.onend = () => setListening(false);
+    recognitionRef.current = recognition;
+    try {
+      recognition.start();
+      setListening(true);
+    } catch {
+      setListening(false);
+      setVoiceError("Could not start voice input. Please try again.");
+    }
   }
 
   function removeAttachment(id) {
@@ -259,6 +305,10 @@ export default function ChatBox({
         </div>
       )}
 
+      {voiceError && (
+        <p role="status" className="px-4 pb-2 text-xs text-coral-300">{voiceError}</p>
+      )}
+
       <form
         onSubmit={handleSend}
         className="border-t border-white/10 p-3 flex items-center gap-2"
@@ -327,6 +377,17 @@ export default function ChatBox({
           className="h-9 w-9 rounded-full hover:bg-white/10 flex items-center justify-center text-lg"
         >
           📄
+        </button>
+
+        <button
+          type="button"
+          title={listening ? "Stop voice input" : "Speak your message"}
+          onClick={toggleVoiceInput}
+          disabled={sending}
+          className={`h-9 w-9 rounded-full flex items-center justify-center text-lg ${listening ? "bg-coral-500/30 text-coral-200 animate-pulse" : "hover:bg-white/10"}`}
+          aria-label={listening ? "Stop voice input" : "Speak your message"}
+        >
+          {listening ? "⏹️" : "🎙️"}
         </button>
 
         <input
