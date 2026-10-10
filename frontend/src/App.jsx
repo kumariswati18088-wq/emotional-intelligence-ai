@@ -5,6 +5,7 @@ import ProfileMenu from "./components/ProfileMenu";
 import AdminPanel from "./components/AdminPanel";
 import LiveCallModal from "./components/LiveCallModal";
 import { api } from "./utils/api";
+import { speakAuraText } from "./utils/speech";
 
 function readSavedSettings() {
   try {
@@ -137,40 +138,15 @@ export default function App() {
     }
   }, [settings]);
 
-  // Free browser TTS fallback: speak AI replies when the API does not return audio.
+  // Free device-based TTS fallback. Uses the closest available voice on this device.
   function handleAiSpeech(payload) {
     setPendingSpeech(payload);
 
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     if (payload?.audio || !payload?.text) return;
-
-    try {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(payload.text);
-      const languageCodes = {
-        hi: "hi-IN", en: "en-US", bn: "bn-IN", ta: "ta-IN",
-        te: "te-IN", mr: "mr-IN", gu: "gu-IN", pa: "pa-IN",
-        ur: "ur-IN", kn: "kn-IN", ml: "ml-IN", or: "or-IN",
-      };
-      const replyText = String(payload.text || "");
-      const replyLanguage =
-        /[ऀ-ॿ]/.test(replyText) ? "hi" :
-        /[ঀ-৿]/.test(replyText) ? "bn" :
-        /[஀-௿]/.test(replyText) ? "ta" :
-        /[ఀ-౿]/.test(replyText) ? "te" :
-        /[਀-੿]/.test(replyText) ? "pa" :
-        /[઀-૿]/.test(replyText) ? "gu" :
-        /[ಀ-೿]/.test(replyText) ? "kn" :
-        /[ഀ-ൿ]/.test(replyText) ? "ml" :
-        /[଀-୿]/.test(replyText) ? "or" :
-        settings.language || "en";
-      utterance.lang = languageCodes[replyLanguage] || replyLanguage || "en-US";
-      utterance.rate = 1;
-      utterance.pitch = 1;
-      window.speechSynthesis.speak(utterance);
-    } catch (error) {
-      console.warn("Browser speech playback unavailable:", error);
-    }
+    speakAuraText(payload.text, {
+      language: settings.language,
+      voice: settings.voice,
+    });
   }
 
   function handleLogout() {
