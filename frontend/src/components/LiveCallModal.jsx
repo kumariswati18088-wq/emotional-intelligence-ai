@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import AvatarScreen from "./AvatarScreen";
 import { api } from "../utils/api";
 
-export default function LiveCallModal({ onClose, token, language, voice, avatar }) {
+export default function LiveCallModal({ onClose, token, language, voice, avatar, onVoiceChange }) {
   const localVideoRef = useRef(null);
   const streamRef = useRef(null);
   const recognitionRef = useRef(null);
@@ -15,6 +15,14 @@ export default function LiveCallModal({ onClose, token, language, voice, avatar 
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false);
   const [audioSrc, setAudioSrc] = useState("");
+  const [messages, setMessages] = useState([{ id: "welcome", role: "assistant", text: "Hi, I am here with you. How are you feeling?" }]);
+  const [voiceMenuOpen, setVoiceMenuOpen] = useState(false);
+  const chatEndRef = useRef(null);
+  const voiceOptions = [{ key: "GIGI", label: "Cute Gigi" }, { key: "MATILDA", label: "Matilda" }, { key: "ADAM", label: "Adam" }];
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, busy]);
 
   useEffect(() => {
     startStream("user");
@@ -79,6 +87,7 @@ export default function LiveCallModal({ onClose, token, language, voice, avatar 
     event?.preventDefault?.();
     const message = input.trim();
     if (!message || busy) return;
+    setMessages((items) => [...items, { id: String(Date.now()) + "-user", role: "user", text: message }]);
     setBusy(true);
     setReply("Aura is thinking…");
     setAudioSrc("");
@@ -88,6 +97,7 @@ export default function LiveCallModal({ onClose, token, language, voice, avatar 
       const result = await api.sendChat(token, { message, language, voice, history: [{ role: "assistant", text: reply }, { role: "user", text: message }] });
       const text = result?.reply || "I couldn't generate a response. Please try again.";
       setReply(text);
+      setMessages((items) => [...items, { id: String(Date.now()) + "-assistant", role: "assistant", text }]);
       setAudioSrc(result?.audio || "");
       if (!result?.audio && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
@@ -118,14 +128,20 @@ export default function LiveCallModal({ onClose, token, language, voice, avatar 
         <div className="relative min-h-0 flex-1 overflow-y-auto p-3 pb-5 sm:p-6">
           <div className="mx-auto w-full max-w-md pt-28 sm:pt-36">
             <AvatarScreen token={token} avatar={avatar} pendingSpeech={null} onSpeechConsumed={() => {}} />
-            <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
-              <p className="mb-2 text-xs uppercase tracking-wider text-teal-200/80">Aura's reply</p>
-              <p className="whitespace-pre-wrap text-sm leading-relaxed">{reply}</p>
-              {audioSrc && <audio key={audioSrc} src={audioSrc} autoPlay controls className="mt-3 w-full" aria-label="Aura live call voice reply" />}
-              {busy && <p className="mt-2 text-xs text-white/50">Preparing your response…</p>}
-            </div>
+            <section className="mt-4 flex min-h-56 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
+              <button type="button" onClick={() => setVoiceMenuOpen((open) => !open)} aria-expanded={voiceMenuOpen} className="flex items-center justify-between border-b border-white/10 px-4 py-3 text-left hover:bg-white/5">
+                <span className="font-semibold">💬 Chat with Aura</span><span className="text-xs text-teal-200">{voiceMenuOpen ? "Close voices ▲" : "Change voice ▾"}</span>
+              </button>
+              {voiceMenuOpen && <div className="flex flex-wrap gap-2 border-b border-white/10 p-3">{voiceOptions.map((option) => <button key={option.key} type="button" onClick={() => { onVoiceChange?.(option.key); setVoiceMenuOpen(false); }} className={"rounded-full border px-3 py-2 text-sm " + (voice === option.key ? "border-teal-300 bg-teal-300/20 text-teal-100" : "border-white/10 bg-white/5 hover:bg-white/10")}>{option.label}{voice === option.key ? " ✓" : ""}</button>)}</div>}
+              <div className="flex-1 space-y-3 overflow-y-auto overscroll-contain p-3 sm:p-4">
+                {messages.map((message) => <div key={message.id} className={"flex " + (message.role === "user" ? "justify-end" : "justify-start")}><div className={"max-w-[88%] rounded-2xl px-3 py-2.5 text-sm leading-relaxed " + (message.role === "user" ? "rounded-br-md bg-teal-300 text-midnight-950" : "rounded-bl-md border border-white/10 bg-white/10 text-white")}><p className="mb-1 text-[10px] font-semibold uppercase tracking-wider opacity-60">{message.role === "user" ? "You" : "Aura"}</p><p className="whitespace-pre-wrap break-words">{message.text}</p></div></div>)}
+                {busy && <p className="text-sm text-white/50">Aura is thinking…</p>}
+                {audioSrc && <audio key={audioSrc} src={audioSrc} autoPlay controls className="w-full" aria-label="Aura live call voice reply" />}
+                <div ref={chatEndRef} />
+              </div>
+            </section>
           </div>
-          <div className="absolute right-3 top-3 h-36 w-36 overflow-hidden rounded-[22px] border-2 border-teal-200/70 bg-black shadow-2xl sm:right-6 sm:top-6 sm:h-52 sm:w-52">
+          <div className="absolute right-3 top-3 h-40 w-28 overflow-hidden rounded-[22px] border-2 border-teal-200/70 bg-black shadow-2xl sm:right-6 sm:top-6 sm:h-56 sm:w-40">
             <video ref={localVideoRef} autoPlay playsInline muted className={"h-full w-full object-cover " + (camOn ? "" : "hidden")} />
             {!camOn && <div className="flex h-full items-center justify-center text-xs text-white/50">Camera off</div>}
           </div>
