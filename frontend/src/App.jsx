@@ -118,6 +118,30 @@ export default function App() {
     };
   }, [token]);
 
+  // Free browser TTS fallback: speak AI replies when the API does not return audio.
+  function handleAiSpeech(payload) {
+    setPendingSpeech(payload);
+
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    if (payload?.audio || !payload?.text) return;
+
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(payload.text);
+      const languageCodes = {
+        hi: "hi-IN", en: "en-US", bn: "bn-IN", ta: "ta-IN",
+        te: "te-IN", mr: "mr-IN", gu: "gu-IN", pa: "pa-IN",
+        ur: "ur-IN", kn: "kn-IN", ml: "ml-IN", or: "or-IN",
+      };
+      utterance.lang = languageCodes[settings.language] || settings.language || "en-US";
+      utterance.rate = 1;
+      utterance.pitch = 1;
+      window.speechSynthesis.speak(utterance);
+    } catch (error) {
+      console.warn("Browser speech playback unavailable:", error);
+    }
+  }
+
   function handleLogout() {
     localStorage.removeItem("ei_token");
     setToken(null);
@@ -218,7 +242,7 @@ export default function App() {
             token={token}
             language={settings.language}
             voice={settings.voice}
-            onAiSpeech={setPendingSpeech}
+            onAiSpeech={handleAiSpeech}
             onAdminUnlock={setAdminToken}
           />
         </div>
