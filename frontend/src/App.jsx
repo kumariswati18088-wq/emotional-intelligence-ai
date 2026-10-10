@@ -135,15 +135,15 @@ export default function App() {
       };
       const replyText = String(payload.text || "");
       const replyLanguage =
-        /[\\u0900-\\u097F]/.test(replyText) ? "hi" :
-        /[\\u0980-\\u09FF]/.test(replyText) ? "bn" :
-        /[\\u0B80-\\u0BFF]/.test(replyText) ? "ta" :
-        /[\\u0C00-\\u0C7F]/.test(replyText) ? "te" :
-        /[\\u0A00-\\u0A7F]/.test(replyText) ? "pa" :
-        /[\\u0A80-\\u0AFF]/.test(replyText) ? "gu" :
-        /[\\u0C80-\\u0CFF]/.test(replyText) ? "kn" :
-        /[\\u0D00-\\u0D7F]/.test(replyText) ? "ml" :
-        /[\\u0B00-\\u0B7F]/.test(replyText) ? "or" :
+        /[ऀ-ॿ]/.test(replyText) ? "hi" :
+        /[ঀ-৿]/.test(replyText) ? "bn" :
+        /[஀-௿]/.test(replyText) ? "ta" :
+        /[ఀ-౿]/.test(replyText) ? "te" :
+        /[਀-੿]/.test(replyText) ? "pa" :
+        /[઀-૿]/.test(replyText) ? "gu" :
+        /[ಀ-೿]/.test(replyText) ? "kn" :
+        /[ഀ-ൿ]/.test(replyText) ? "ml" :
+        /[଀-୿]/.test(replyText) ? "or" :
         settings.language || "en";
       utterance.lang = languageCodes[replyLanguage] || replyLanguage || "en-US";
       utterance.rate = 1;
