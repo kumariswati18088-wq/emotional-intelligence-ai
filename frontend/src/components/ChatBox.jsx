@@ -76,17 +76,21 @@ export default function ChatBox({
         setVoiceError("Keep the total attachments in one message under 8 MB so Aura can receive them.");
         continue;
       }
-      setVoiceError("");
-      const record = await saveAttachment(file);
 
-      setAttachments((prev) => [
-        ...prev,
-        {
-          ...record,
-          kind,
-          url: attachmentUrl(record),
-        },
-      ]);
+      try {
+        const record = await saveAttachment(file);
+        setAttachments((prev) => [
+          ...prev,
+          {
+            ...record,
+            kind,
+            url: attachmentUrl(record),
+          },
+        ]);
+        setVoiceError("");
+      } catch (error) {
+        setVoiceError(error?.message || "Could not load that file. Please try another file.");
+      }
     }
 
     e.target.value = "";
