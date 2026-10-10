@@ -128,7 +128,7 @@ export default function LiveCallModal({ onClose, token, language, voice, avatar,
         <div className="relative min-h-0 flex-1 overflow-y-auto p-3 pb-5 sm:p-6">
           <div className="mx-auto w-full max-w-md pt-28 sm:pt-36">
             <AvatarScreen token={token} avatar={avatar} pendingSpeech={null} onSpeechConsumed={() => {}} />
-            <section className="mt-4 flex min-h-56 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
+            <section className="mt-4 flex h-[38dvh] min-h-[220px] max-h-[420px] flex-none flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
               <button type="button" onClick={() => setVoiceMenuOpen((open) => !open)} aria-expanded={voiceMenuOpen} className="flex items-center justify-between border-b border-white/10 px-4 py-3 text-left hover:bg-white/5">
                 <span className="font-semibold">💬 Chat with Aura</span><span className="text-xs text-teal-200">{voiceMenuOpen ? "Close voices ▲" : "Change voice ▾"}</span>
               </button>
