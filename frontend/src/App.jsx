@@ -133,7 +133,19 @@ export default function App() {
         te: "te-IN", mr: "mr-IN", gu: "gu-IN", pa: "pa-IN",
         ur: "ur-IN", kn: "kn-IN", ml: "ml-IN", or: "or-IN",
       };
-      utterance.lang = languageCodes[settings.language] || settings.language || "en-US";
+      const replyText = String(payload.text || "");
+      const replyLanguage =
+        /[\\u0900-\\u097F]/.test(replyText) ? "hi" :
+        /[\\u0980-\\u09FF]/.test(replyText) ? "bn" :
+        /[\\u0B80-\\u0BFF]/.test(replyText) ? "ta" :
+        /[\\u0C00-\\u0C7F]/.test(replyText) ? "te" :
+        /[\\u0A00-\\u0A7F]/.test(replyText) ? "pa" :
+        /[\\u0A80-\\u0AFF]/.test(replyText) ? "gu" :
+        /[\\u0C80-\\u0CFF]/.test(replyText) ? "kn" :
+        /[\\u0D00-\\u0D7F]/.test(replyText) ? "ml" :
+        /[\\u0B00-\\u0B7F]/.test(replyText) ? "or" :
+        settings.language || "en";
+      utterance.lang = languageCodes[replyLanguage] || replyLanguage || "en-US";
       utterance.rate = 1;
       utterance.pitch = 1;
       window.speechSynthesis.speak(utterance);
