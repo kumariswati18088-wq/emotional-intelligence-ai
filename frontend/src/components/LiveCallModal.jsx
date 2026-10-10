@@ -14,7 +14,7 @@ export default function LiveCallModal({ onClose, token, language, voice, avatar 
   const [reply, setReply] = useState("Hi, I'm here with you. How are you feeling?");
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false);
-  const [pendingSpeech, setPendingSpeech] = useState(null);
+  const [audioSrc, setAudioSrc] = useState("");
 
   useEffect(() => {
     startStream("user");
@@ -81,13 +81,14 @@ export default function LiveCallModal({ onClose, token, language, voice, avatar 
     if (!message || busy) return;
     setBusy(true);
     setReply("Aura is thinking…");
+    setAudioSrc("");
+    window.speechSynthesis?.cancel?.();
     setInput("");
     try {
       const result = await api.sendChat(token, { message, language, voice, history: [{ role: "assistant", text: reply }, { role: "user", text: message }] });
       const text = result?.reply || "I couldn't generate a response. Please try again.";
       setReply(text);
-      const payload = { text, emotion: result?.emotion || "Neutral", audio: result?.audio || null };
-      setPendingSpeech(payload);
+      setAudioSrc(result?.audio || "");
       if (!result?.audio && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
@@ -116,10 +117,11 @@ export default function LiveCallModal({ onClose, token, language, voice, avatar 
         </header>
         <div className="relative min-h-0 flex-1 overflow-y-auto p-3 pb-5 sm:p-6">
           <div className="mx-auto w-full max-w-md pt-28 sm:pt-36">
-            <AvatarScreen token={token} avatar={avatar} pendingSpeech={pendingSpeech} onSpeechConsumed={() => setPendingSpeech(null)} />
+            <AvatarScreen token={token} avatar={avatar} pendingSpeech={null} onSpeechConsumed={() => {}} />
             <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
               <p className="mb-2 text-xs uppercase tracking-wider text-teal-200/80">Aura's reply</p>
               <p className="whitespace-pre-wrap text-sm leading-relaxed">{reply}</p>
+              {audioSrc && <audio key={audioSrc} src={audioSrc} autoPlay controls className="mt-3 w-full" aria-label="Aura live call voice reply" />}
               {busy && <p className="mt-2 text-xs text-white/50">Preparing your response…</p>}
             </div>
           </div>
