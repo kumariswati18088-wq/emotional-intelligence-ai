@@ -6,6 +6,19 @@ import AdminPanel from "./components/AdminPanel";
 import LiveCallModal from "./components/LiveCallModal";
 import { api } from "./utils/api";
 
+function readSavedSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem("ei_settings") || "{}");
+    return {
+      avatar: ["GIRL1", "GIRL2", "BOY1", "BOY2"].includes(saved.avatar) ? saved.avatar : "GIRL1",
+      voice: ["GIGI", "MATILDA", "ADAM"].includes(saved.voice) ? saved.voice : "GIGI",
+      language: typeof saved.language === "string" && saved.language ? saved.language : "en",
+    };
+  } catch {
+    return { avatar: "GIRL1", voice: "GIGI", language: "en" };
+  }
+}
+
 export default function App() {
   const [token, setToken] = useState(() =>
     localStorage.getItem("ei_token")
@@ -13,11 +26,7 @@ export default function App() {
 
   const [user, setUser] = useState(null);
 
-  const [settings, setSettings] = useState({
-    avatar: "GIRL1",
-    voice: "GIGI",
-    language: "en",
-  });
+  const [settings, setSettings] = useState(readSavedSettings);
 
   const [pendingSpeech, setPendingSpeech] = useState(null);
   const [adminToken, setAdminToken] = useState(null);
@@ -55,6 +64,7 @@ export default function App() {
             avatar: guestUser.avatar || "GIRL1",
             voice: guestUser.voice || "GIGI",
             language: guestUser.language || "en",
+            ...readSavedSettings(),
           });
         } catch (err) {
           console.error("Guest session failed:", err);
@@ -94,6 +104,7 @@ export default function App() {
           avatar: currentUser.avatar || "GIRL1",
           voice: currentUser.voice || "GIGI",
           language: currentUser.language || "en",
+          ...readSavedSettings(),
         });
       } catch (err) {
         console.error("Session restore failed:", err);
@@ -117,6 +128,14 @@ export default function App() {
       cancelled = true;
     };
   }, [token]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("ei_settings", JSON.stringify(settings));
+    } catch (error) {
+      console.warn("Could not save Aura settings locally:", error);
+    }
+  }, [settings]);
 
   // Free browser TTS fallback: speak AI replies when the API does not return audio.
   function handleAiSpeech(payload) {
