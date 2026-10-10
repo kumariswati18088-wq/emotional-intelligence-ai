@@ -11,6 +11,7 @@ export default function ChatBox({
   voice,
   onAiSpeech,
   onAdminUnlock,
+  onLiveCall,
 }) {
   const [messages, setMessages] = useState([
     {
@@ -31,6 +32,7 @@ export default function ChatBox({
   const genericFileRef = useRef(null);
   const textareaRef = useRef(null);
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
+  const [emojiMenuOpen, setEmojiMenuOpen] = useState(false);
   const recognitionRef = useRef(null);
   const [listening, setListening] = useState(false);
   const [voiceError, setVoiceError] = useState("");
@@ -159,14 +161,21 @@ export default function ChatBox({
       }
     }
 
+    const encodedAttachments = await Promise.all(attachments.map(async (a) => {
+      const blob = a.blob;
+      if (!blob || blob.size > 8 * 1024 * 1024) {
+        throw new Error("Each attachment must be smaller than 8 MB to send to Aura.");
+      }
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      let binary = "";
+      for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      return { name: a.name, kind: a.kind, type: a.type || blob.type || "application/octet-stream", size: a.size, data: btoa(binary), url: a.url };
+    }));
+
     const userMessage = {
       role: "user",
       text: trimmed || "(shared an attachment)",
-      attachments: attachments.map((a) => ({
-        name: a.name,
-        kind: a.kind,
-        url: a.url,
-      })),
+      attachments: encodedAttachments,
     };
 
     // IMPORTANT:
@@ -202,6 +211,7 @@ export default function ChatBox({
           language,
           voice,
           history,
+          attachments: encodedAttachments.map(({ name, kind, type, size, data }) => ({ name, kind, type, size, data })),
         });
 
       const assistantMessage = {
@@ -385,17 +395,6 @@ export default function ChatBox({
             <button type="button" onClick={() => { setAttachMenuOpen(false); genericFileRef.current?.click(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm hover:bg-white/10">📁 <span>Any file</span></button>
           </div>}
         </div>
-        <button
-          type="button"
-          title={listening ? "Stop voice input" : "Speak your message"}
-          onClick={toggleVoiceInput}
-          disabled={sending}
-          className={`h-11 w-11 shrink-0 rounded-full border border-white/10 flex items-center justify-center text-xl ${listening ? "bg-coral-500/30 text-coral-200 animate-pulse" : "bg-white/5 hover:bg-white/10"}`}
-          aria-label={listening ? "Stop voice input" : "Speak your message"}
-        >
-          {listening ? "⏹️" : "🎙️"}
-        </button>
-
         <textarea
           ref={textareaRef}
           value={input}
