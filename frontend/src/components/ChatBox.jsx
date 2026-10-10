@@ -167,16 +167,31 @@ export default function ChatBox({
       }
     }
 
-    const encodedAttachments = await Promise.all(attachments.map(async (a) => {
-      const blob = a.blob;
-      if (!blob || blob.size > 8 * 1024 * 1024) {
-        throw new Error("Each attachment must be smaller than 8 MB to send to Aura.");
-      }
-      const bytes = new Uint8Array(await blob.arrayBuffer());
-      let binary = "";
-      for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-      return { name: a.name, kind: a.kind, type: a.type || blob.type || "application/octet-stream", size: a.size, data: btoa(binary), url: a.url };
-    }));
+    let encodedAttachments;
+    try {
+      encodedAttachments = await Promise.all(attachments.map(async (a) => {
+        const blob = a.blob;
+        if (!blob || blob.size > 8 * 1024 * 1024) {
+          throw new Error("Each attachment must be smaller than 8 MB to send to Aura.");
+        }
+        const bytes = new Uint8Array(await blob.arrayBuffer());
+        let binary = "";
+        for (let i = 0; i < bytes.length; i += 0x8000) {
+          binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+        }
+        return {
+          name: a.name,
+          kind: a.kind,
+          type: a.type || blob.type || "application/octet-stream",
+          size: blob.size,
+          data: btoa(binary),
+          url: a.url,
+        };
+      }));
+    } catch (err) {
+      setVoiceError(err?.message || "Could not prepare the attachment. Please try again.");
+      return;
+    }
 
     const userMessage = {
       role: "user",
