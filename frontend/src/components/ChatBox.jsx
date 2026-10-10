@@ -32,6 +32,21 @@ export default function ChatBox({
   const recognitionRef = useRef(null);
   const [listening, setListening] = useState(false);
   const [voiceError, setVoiceError] = useState("");
+  const composerRef = useRef(null);
+
+  useEffect(() => {
+    const keepComposerVisible = () => {
+      if (document.activeElement?.matches?.("textarea")) {
+        window.setTimeout(() => document.activeElement?.scrollIntoView?.({ block: "nearest", behavior: "smooth" }), 80);
+      }
+    };
+    window.addEventListener("resize", keepComposerVisible);
+    window.visualViewport?.addEventListener("resize", keepComposerVisible);
+    return () => {
+      window.removeEventListener("resize", keepComposerVisible);
+      window.visualViewport?.removeEventListener("resize", keepComposerVisible);
+    };
+  }, []);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -313,7 +328,7 @@ export default function ChatBox({
 
       <form
         onSubmit={handleSend}
-        className="chat-composer border-t border-white/10 p-3 flex items-end gap-2"
+        ref={composerRef} className="chat-composer sticky bottom-0 z-20 border-t border-white/10 bg-midnight-950/95 backdrop-blur-xl p-3 pb-[max(12px,env(safe-area-inset-bottom))] flex items-end gap-2"
       >
         <input
           ref={imageInputRef}
@@ -350,7 +365,7 @@ export default function ChatBox({
 
         <input ref={genericFileRef} type="file" multiple hidden onChange={(e) => handleFilePick(e, "document")} />
         <div className="relative shrink-0">
-          <button type="button" title="Add attachment" aria-label="Add attachment" aria-expanded={attachMenuOpen} onClick={() => setAttachMenuOpen((v) => !v)} className="h-11 w-11 rounded-full border border-white/15 bg-white/5 hover:bg-white/10 flex items-center justify-center text-2xl">＋</button>
+          <button type="button" title="Add attachment" aria-label="Add attachment" aria-expanded={attachMenuOpen} onClick={() => setAttachMenuOpen((v) => !v)} className="h-12 w-12 rounded-2xl border border-white/15 bg-white/5 hover:bg-white/10 flex items-center justify-center text-3xl shrink-0">＋</button>
           {attachMenuOpen && <div className="absolute bottom-14 left-0 z-30 w-52 rounded-2xl border border-white/10 bg-midnight-900 p-2 shadow-2xl">
             <button type="button" onClick={() => { setAttachMenuOpen(false); imageInputRef.current?.click(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm hover:bg-white/10">🖼️ <span>Photo</span></button>
             <button type="button" onClick={() => { setAttachMenuOpen(false); videoInputRef.current?.click(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm hover:bg-white/10">🎬 <span>Video</span></button>
@@ -364,7 +379,7 @@ export default function ChatBox({
           title={listening ? "Stop voice input" : "Speak your message"}
           onClick={toggleVoiceInput}
           disabled={sending}
-          className={`h-9 w-9 rounded-full flex items-center justify-center text-lg ${listening ? "bg-coral-500/30 text-coral-200 animate-pulse" : "hover:bg-white/10"}`}
+          className={`h-11 w-11 shrink-0 rounded-full border border-white/10 flex items-center justify-center text-xl ${listening ? "bg-coral-500/30 text-coral-200 animate-pulse" : "bg-white/5 hover:bg-white/10"}`}
           aria-label={listening ? "Stop voice input" : "Speak your message"}
         >
           {listening ? "⏹️" : "🎙️"}
@@ -374,7 +389,7 @@ export default function ChatBox({
           value={input}
           rows={1}
           onChange={(e) => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 144) + "px"; }}
-          onFocus={() => window.setTimeout(() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }), 250)}
+          onFocus={(e) => { window.setTimeout(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); e.currentTarget.scrollIntoView?.({ block: "nearest", behavior: "smooth" }); }, 250); }}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }}
           placeholder="Share what's on your mind…"
           className="min-w-0 flex-1 resize-none overflow-y-auto rounded-3xl bg-midnight-800 border border-white/10 px-4 py-3 text-base leading-6 outline-none focus:border-lavender-400"
