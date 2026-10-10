@@ -71,6 +71,12 @@ export default function ChatBox({
     const files = Array.from(e.target.files || []);
 
     for (const file of files) {
+      const currentBytes = attachments.reduce((total, item) => total + (item.size || 0), 0);
+      if (file.size > 8 * 1024 * 1024 || currentBytes + file.size > 8 * 1024 * 1024) {
+        setVoiceError("Keep the total attachments in one message under 8 MB so Aura can receive them.");
+        continue;
+      }
+      setVoiceError("");
       const record = await saveAttachment(file);
 
       setAttachments((prev) => [
