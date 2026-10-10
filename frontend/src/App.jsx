@@ -211,12 +211,7 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setCallOpen(true)}
-            className="px-4 py-2 rounded-full bg-teal-400/15 border border-teal-300/30 text-teal-200 text-sm hover:bg-teal-400/25"
-          >
-            📞 Live call
-          </button>
+          <span aria-label="Premium feature" title="Aura Premium" className="text-xl" role="img">👑</span>
 
           <ProfileMenu
             token={token}
@@ -256,12 +251,23 @@ export default function App() {
             voice={settings.voice}
             onAiSpeech={handleAiSpeech}
             onAdminUnlock={setAdminToken}
+            onLiveCall={() => setCallOpen(true)}
           />
         </div>
       </main>
 
       {callOpen && (
-        <LiveCallModal token={token} language={settings.language} voice={settings.voice} avatar={settings.avatar} onClose={() => setCallOpen(false)} />
+        <LiveCallModal
+          token={token}
+          language={settings.language}
+          voice={settings.voice}
+          avatar={settings.avatar}
+          onVoiceChange={async (nextVoice) => {
+            setSettings((current) => ({ ...current, voice: nextVoice }));
+            try { await api.updateProfile(token, { voice: nextVoice }); } catch (error) { console.warn("Could not save voice setting:", error); }
+          }}
+          onClose={() => setCallOpen(false)}
+        />
       )}
 
       {adminToken && (
