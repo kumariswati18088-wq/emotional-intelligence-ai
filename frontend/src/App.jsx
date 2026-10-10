@@ -229,7 +229,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="flex-1 grid lg:grid-cols-2 gap-6 max-w-6xl w-full mx-auto p-6">
+      <main className="flex-1 grid min-h-0 lg:grid-cols-2 gap-3 sm:gap-6 max-w-6xl w-full mx-auto p-3 sm:p-6">
         <div className="flex flex-col items-center justify-start">
           {!callOpen && <AvatarScreen
             token={token}
@@ -249,7 +249,7 @@ export default function App() {
           )}
         </div>
 
-        <div className="rounded-3xl border border-white/10 bg-midnight-900/60 overflow-hidden h-[70vh] lg:h-auto">
+        <div className="rounded-3xl border border-white/10 bg-midnight-900/60 overflow-hidden h-[calc(100dvh-118px)] min-h-[320px] lg:h-auto">
           <ChatBox
             token={token}
             language={settings.language}
