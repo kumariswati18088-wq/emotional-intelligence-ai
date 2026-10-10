@@ -35,10 +35,13 @@ export default function LiveCallModal({ onClose, token, language, voice, avatar,
       stopStream();
       if (!navigator.mediaDevices?.getUserMedia) throw new Error("Camera/microphone require browser permission and a secure connection.");
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: mode }, audio: true });
+      // Preserve the user's mic/camera choices when switching the camera.
+      stream.getAudioTracks().forEach((track) => { track.enabled = micOn; });
+      stream.getVideoTracks().forEach((track) => { track.enabled = camOn; });
       streamRef.current = stream;
       if (localVideoRef.current) localVideoRef.current.srcObject = stream;
-      setMicOn(stream.getAudioTracks().some((t) => t.enabled));
-      setCamOn(stream.getVideoTracks().some((t) => t.enabled));
+      setMicOn(stream.getAudioTracks().some((track) => track.enabled));
+      setCamOn(stream.getVideoTracks().some((track) => track.enabled));
       setError("");
     } catch (err) {
       setError(err?.message || "Camera/microphone access unavailable. You can still type to Aura.");
