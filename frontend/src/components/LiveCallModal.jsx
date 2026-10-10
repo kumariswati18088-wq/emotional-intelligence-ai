@@ -97,7 +97,7 @@ export default function LiveCallModal({ onClose, token, language, voice, avatar,
     window.speechSynthesis?.cancel?.();
     setInput("");
     try {
-      const result = await api.sendChat(token, { message, language, voice, history: [{ role: "assistant", text: reply }, { role: "user", text: message }] });
+      const result = await api.sendChat(token, { message, language, voice, history: [...messages, { role: "user", text: message }].slice(-50).map((item) => ({ role: item.role, text: item.text })) });
       const text = result?.reply || "I couldn't generate a response. Please try again.";
       setReply(text);
       setMessages((items) => [...items, { id: String(Date.now()) + "-assistant", role: "assistant", text }]);
