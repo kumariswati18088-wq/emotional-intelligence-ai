@@ -179,6 +179,7 @@ async function generateReply({
   emotion,
   language,
   history = [],
+  attachments = [],
 }) {
   const languageNames = {
     en: "English",
@@ -309,6 +310,30 @@ Latest user message:
 ${latestMessage}`
     : latestMessage;
 
+  const contentParts = [{ text: prompt }];
+  for (const attachment of (Array.isArray(attachments) ? attachments.slice(0, 5) : [])) {
+    const mimeType = String(attachment?.type || "").toLowerCase();
+    const name = String(attachment?.name || "uploaded file").slice(0, 180);
+    const data = String(attachment?.data || "");
+    if (!data) {
+      contentParts.push({ text: "The user attached " + name + ", but its contents were not available to the AI." });
+      continue;
+    }
+    if (mimeType.startsWith("image/") || mimeType.startsWith("video/") || mimeType === "application/pdf") {
+      contentParts.push({ text: "User attachment: " + name });
+      contentParts.push({ inline_data: { mime_type: mimeType, data } });
+    } else if (mimeType.startsWith("text/") || /\.(txt|csv|json|md)$/i.test(name)) {
+      try {
+        const decoded = Buffer.from(data, "base64").toString("utf8").slice(0, 30000);
+        contentParts.push({ text: "Text from attached file " + name + ":\n" + decoded });
+      } catch {
+        contentParts.push({ text: "The user attached " + name + ", but its text could not be decoded." });
+      }
+    } else {
+      contentParts.push({ text: "The user attached " + name + " (" + mimeType + "). This file format is attached but its contents may not be readable by the current AI provider." });
+    }
+  }
+
   const requestBody = {
     system_instruction: {
       parts: [
@@ -320,11 +345,7 @@ ${latestMessage}`
     contents: [
       {
         role: "user",
-        parts: [
-          {
-            text: prompt,
-          },
-        ],
+        parts: contentParts,
       },
     ],
   };
