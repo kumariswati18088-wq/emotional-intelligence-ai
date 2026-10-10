@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import AvatarScreen from "./AvatarScreen";
 import { api } from "../utils/api";
+import { speakAuraText } from "../utils/speech";
 
 export default function LiveCallModal({ onClose, token, language, voice, avatar, onVoiceChange }) {
   const localVideoRef = useRef(null);
@@ -102,13 +103,8 @@ export default function LiveCallModal({ onClose, token, language, voice, avatar,
       setReply(text);
       setMessages((items) => [...items, { id: String(Date.now()) + "-assistant", role: "assistant", text }]);
       setAudioSrc(result?.audio || "");
-      if (!result?.audio && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        const languageCodes = {hi:"hi-IN",en:"en-US",bn:"bn-IN",ta:"ta-IN",te:"te-IN",mr:"mr-IN",gu:"gu-IN",pa:"pa-IN",ur:"ur-IN",kn:"kn-IN",ml:"ml-IN",or:"or-IN"};
-        const spokenLanguage = /[ऀ-ॿ]/.test(text) ? "hi" : /[ঀ-৿]/.test(text) ? "bn" : /[஀-௿]/.test(text) ? "ta" : /[ఀ-౿]/.test(text) ? "te" : /[਀-੿]/.test(text) ? "pa" : /[઀-૿]/.test(text) ? "gu" : /[ಀ-೿]/.test(text) ? "kn" : /[ഀ-ൿ]/.test(text) ? "ml" : /[଀-୿]/.test(text) ? "or" : (language || "en");
-        utterance.lang = languageCodes[spokenLanguage] || spokenLanguage || "en-US";
-        window.speechSynthesis.speak(utterance);
+      if (!result?.audio) {
+        speakAuraText(text, { language, voice });
       }
     } catch (err) {
       setReply("Sorry, I couldn't get a response: " + (err?.message || "Please try again."));
