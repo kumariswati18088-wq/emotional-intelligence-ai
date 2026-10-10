@@ -406,8 +406,11 @@ export default function ChatBox({
           className="min-w-0 flex-1 resize-none overflow-y-auto rounded-3xl bg-midnight-800 border border-white/10 px-4 py-3 text-base leading-6 outline-none focus:border-lavender-400"
           style={{ maxHeight: "144px", minHeight: "48px" }}
         />
+        <button type="button" onClick={() => setEmojiMenuOpen((v) => !v)} className="h-11 w-11 shrink-0 rounded-full border border-white/10 bg-white/5 text-xl" aria-label="Emoji">☺</button>
         <button type="submit" disabled={sending} className="h-12 w-12 shrink-0 rounded-full bg-lavender-500 hover:bg-lavender-400 disabled:opacity-50 flex items-center justify-center text-xl shadow-lg" aria-label="Send">➤</button>
       </form>
+      {emojiMenuOpen && <div className="grid grid-cols-6 gap-1 px-3 pb-2">{["😀","😂","🥹","😊","😍","😎","😭","😡","👍","🙏","❤️","✨"].map((emoji) => <button key={emoji} type="button" onClick={() => { setInput((v) => v + emoji); setEmojiMenuOpen(false); }} className="rounded-lg p-2 text-xl hover:bg-white/10">{emoji}</button>)}</div>}
+      <button type="button" onClick={onLiveCall} className="mx-3 mb-3 flex w-[calc(100%-1.5rem)] items-center justify-center gap-2 rounded-2xl border border-teal-300/30 bg-teal-400/15 px-4 py-3 font-semibold text-teal-100 hover:bg-teal-400/25"><span>📞</span> Live Call</button>
     </div>
   );
 }
