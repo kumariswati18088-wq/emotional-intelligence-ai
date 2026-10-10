@@ -231,14 +231,14 @@ export default function App() {
 
       <main className="flex-1 grid lg:grid-cols-2 gap-6 max-w-6xl w-full mx-auto p-6">
         <div className="flex flex-col items-center justify-start">
-          <AvatarScreen
+          {!callOpen && <AvatarScreen
             token={token}
             avatar={settings.avatar}
             pendingSpeech={pendingSpeech}
             onSpeechConsumed={() => setPendingSpeech(null)}
-          />
+          />}
 
-          {pendingSpeech?.audio && (
+          {!callOpen && pendingSpeech?.audio && (
             <audio
               src={pendingSpeech.audio}
               autoPlay
@@ -261,7 +261,7 @@ export default function App() {
       </main>
 
       {callOpen && (
-        <LiveCallModal onClose={() => setCallOpen(false)} />
+        <LiveCallModal token={token} language={settings.language} voice={settings.voice} avatar={settings.avatar} onClose={() => setCallOpen(false)} />
       )}
 
       {adminToken && (
