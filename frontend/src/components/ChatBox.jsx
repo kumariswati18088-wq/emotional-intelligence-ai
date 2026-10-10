@@ -27,7 +27,9 @@ export default function ChatBox({
   const imageInputRef = useRef(null);
   const videoInputRef = useRef(null);
   const docInputRef = useRef(null);
+  const pdfInputRef = useRef(null);
   const genericFileRef = useRef(null);
+  const textareaRef = useRef(null);
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
   const recognitionRef = useRef(null);
   const [listening, setListening] = useState(false);
@@ -47,6 +49,14 @@ export default function ChatBox({
       window.visualViewport?.removeEventListener("resize", keepComposerVisible);
     };
   }, []);
+
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = "auto";
+      textarea.style.height = Math.min(textarea.scrollHeight, 144) + "px";
+    }
+  }, [input]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -363,6 +373,7 @@ export default function ChatBox({
           }
         />
 
+        <input ref={pdfInputRef} type="file" accept=".pdf,application/pdf" multiple hidden onChange={(e) => handleFilePick(e, "document")} />
         <input ref={genericFileRef} type="file" multiple hidden onChange={(e) => handleFilePick(e, "document")} />
         <div className="relative shrink-0">
           <button type="button" title="Add attachment" aria-label="Add attachment" aria-expanded={attachMenuOpen} onClick={() => setAttachMenuOpen((v) => !v)} className="h-12 w-12 rounded-2xl border border-white/15 bg-white/5 hover:bg-white/10 flex items-center justify-center text-3xl shrink-0">＋</button>
@@ -370,7 +381,7 @@ export default function ChatBox({
             <button type="button" onClick={() => { setAttachMenuOpen(false); imageInputRef.current?.click(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm hover:bg-white/10">🖼️ <span>Photo</span></button>
             <button type="button" onClick={() => { setAttachMenuOpen(false); videoInputRef.current?.click(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm hover:bg-white/10">🎬 <span>Video</span></button>
             <button type="button" onClick={() => { setAttachMenuOpen(false); docInputRef.current?.click(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm hover:bg-white/10">📄 <span>Document</span></button>
-            <button type="button" onClick={() => { setAttachMenuOpen(false); if (docInputRef.current) docInputRef.current.accept = ".pdf"; docInputRef.current?.click(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm hover:bg-white/10">📕 <span>PDF</span></button>
+            <button type="button" onClick={() => { setAttachMenuOpen(false); pdfInputRef.current?.click(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm hover:bg-white/10">📕 <span>PDF</span></button>
             <button type="button" onClick={() => { setAttachMenuOpen(false); genericFileRef.current?.click(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm hover:bg-white/10">📁 <span>Any file</span></button>
           </div>}
         </div>
@@ -386,9 +397,10 @@ export default function ChatBox({
         </button>
 
         <textarea
+          ref={textareaRef}
           value={input}
           rows={1}
-          onChange={(e) => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 144) + "px"; }}
+          onChange={(e) => setInput(e.target.value)}
           onFocus={(e) => { window.setTimeout(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); e.currentTarget.scrollIntoView?.({ block: "nearest", behavior: "smooth" }); }, 250); }}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }}
           placeholder="Share what's on your mind…"
