@@ -33,37 +33,66 @@ async function detectEmotion(text) {
       return heuristicEmotion(text);
     }
 
-    const response = await axios.post(
+    const headers = {
+      "X-Hume-Api-Key": process.env.HUME_API_KEY,
+      "Content-Type": "application/json",
+    };
+
+    // Hume Batch API is asynchronous: first create a job, then fetch its predictions.
+    const submitted = await axios.post(
       "https://api.hume.ai/v0/batch/jobs",
-      {
-        models: {
-          language: {},
-        },
-        text: [text],
-      },
-      {
-        headers: {
-          "X-Hume-Api-Key": process.env.HUME_API_KEY,
-          "Content-Type": "application/json",
-        },
-        timeout: 8000,
-      }
+      { models: { language: {} }, text: [text] },
+      { headers, timeout: 5000 }
     );
 
-    const predictions = response.data?.predictions;
+    const jobId = submitted.data?.job_id;
+    if (!jobId) {
+      console.warn("Hume did not return a job_id; using local emotion fallback.");
+      return heuristicEmotion(text);
+    }
 
-    if (Array.isArray(predictions) && predictions.length > 0) {
-      const emotions = predictions[0]?.emotions;
-
-      if (Array.isArray(emotions) && emotions.length > 0) {
-        const top = [...emotions].sort(
-          (a, b) => (Number(b.score) || 0) - (Number(a.score) || 0)
-        )[0];
-
-        if (top?.name) {
-          return normalizeEmotion(top.name);
-        }
+    // Allow a short processing window; never block chat for long on emotion detection.
+    let predictionData = null;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      if (attempt > 0) {
+        await new Promise((resolve) => setTimeout(resolve, 700));
       }
+      try {
+        const result = await axios.get(
+          `https://api.hume.ai/v0/batch/jobs/${encodeURIComponent(jobId)}/predictions`,
+          { headers, timeout: 2500 }
+        );
+        predictionData = result.data;
+        if (predictionData) break;
+      } catch (pollError) {
+        const status = pollError?.response?.status;
+        // A job may not be ready yet; retry briefly, but don't hide auth or other errors.
+        if (status && status !== 404 && status !== 409) throw pollError;
+      }
+    }
+
+    const foundEmotions = [];
+    const visited = new Set();
+    function collectEmotionArrays(value) {
+      if (!value || typeof value !== "object" || visited.has(value)) return;
+      visited.add(value);
+      if (Array.isArray(value)) {
+        if (value.length && value.some((item) => item && typeof item.name === "string" && Number.isFinite(Number(item.score)))) {
+          foundEmotions.push(value);
+        }
+        for (const item of value) collectEmotionArrays(item);
+        return;
+      }
+      for (const child of Object.values(value)) collectEmotionArrays(child);
+    }
+    collectEmotionArrays(predictionData);
+
+    const emotions = foundEmotions[0];
+    if (emotions?.length) {
+      const top = [...emotions].sort(
+        (a, b) => (Number(b.score) || 0) - (Number(a.score) || 0)
+      )[0];
+      if (top?.name) return normalizeEmotion(top.name);
     }
 
     return heuristicEmotion(text);
@@ -72,7 +101,6 @@ async function detectEmotion(text) {
       "Hume emotion detection failed:",
       err?.response?.data || err?.message || err
     );
-
     return heuristicEmotion(text);
   }
 }
