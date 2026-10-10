@@ -18,7 +18,7 @@ const chatLimiter = rateLimit({
 });
 
 router.post("/", requireAuth, chatLimiter, async (req, res) => {
-  const { message, language, voice, history } = req.body;
+  const { message, language, voice, history, attachments = [] } = req.body;
 
   if (!message || !message.trim()) {
     return res.status(400).json({
@@ -50,6 +50,7 @@ router.post("/", requireAuth, chatLimiter, async (req, res) => {
       emotion,
       language: language || "en",
       history: Array.isArray(history) ? history : [],
+      attachments: Array.isArray(attachments) ? attachments.slice(0, 5) : [],
     });
 
     console.log("CHAT STEP 2 OK — Gemini reply generated");
