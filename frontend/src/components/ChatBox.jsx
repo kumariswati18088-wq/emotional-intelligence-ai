@@ -27,6 +27,8 @@ export default function ChatBox({
   const imageInputRef = useRef(null);
   const videoInputRef = useRef(null);
   const docInputRef = useRef(null);
+  const genericFileRef = useRef(null);
+  const [attachMenuOpen, setAttachMenuOpen] = useState(false);
   const recognitionRef = useRef(null);
   const [listening, setListening] = useState(false);
   const [voiceError, setVoiceError] = useState("");
@@ -311,7 +313,7 @@ export default function ChatBox({
 
       <form
         onSubmit={handleSend}
-        className="border-t border-white/10 p-3 flex items-center gap-2"
+        className="chat-composer border-t border-white/10 p-3 flex items-end gap-2"
       >
         <input
           ref={imageInputRef}
@@ -346,39 +348,17 @@ export default function ChatBox({
           }
         />
 
-        <button
-          type="button"
-          title="Attach image"
-          onClick={() =>
-            imageInputRef.current?.click()
-          }
-          className="h-9 w-9 rounded-full hover:bg-white/10 flex items-center justify-center text-lg"
-        >
-          🖼️
-        </button>
-
-        <button
-          type="button"
-          title="Attach video"
-          onClick={() =>
-            videoInputRef.current?.click()
-          }
-          className="h-9 w-9 rounded-full hover:bg-white/10 flex items-center justify-center text-lg"
-        >
-          🎬
-        </button>
-
-        <button
-          type="button"
-          title="Attach document"
-          onClick={() =>
-            docInputRef.current?.click()
-          }
-          className="h-9 w-9 rounded-full hover:bg-white/10 flex items-center justify-center text-lg"
-        >
-          📄
-        </button>
-
+        <input ref={genericFileRef} type="file" multiple hidden onChange={(e) => handleFilePick(e, "document")} />
+        <div className="relative shrink-0">
+          <button type="button" title="Add attachment" aria-label="Add attachment" aria-expanded={attachMenuOpen} onClick={() => setAttachMenuOpen((v) => !v)} className="h-11 w-11 rounded-full border border-white/15 bg-white/5 hover:bg-white/10 flex items-center justify-center text-2xl">＋</button>
+          {attachMenuOpen && <div className="absolute bottom-14 left-0 z-30 w-52 rounded-2xl border border-white/10 bg-midnight-900 p-2 shadow-2xl">
+            <button type="button" onClick={() => { setAttachMenuOpen(false); imageInputRef.current?.click(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm hover:bg-white/10">🖼️ <span>Photo</span></button>
+            <button type="button" onClick={() => { setAttachMenuOpen(false); videoInputRef.current?.click(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm hover:bg-white/10">🎬 <span>Video</span></button>
+            <button type="button" onClick={() => { setAttachMenuOpen(false); docInputRef.current?.click(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm hover:bg-white/10">📄 <span>Document</span></button>
+            <button type="button" onClick={() => { setAttachMenuOpen(false); if (docInputRef.current) docInputRef.current.accept = ".pdf"; docInputRef.current?.click(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm hover:bg-white/10">📕 <span>PDF</span></button>
+            <button type="button" onClick={() => { setAttachMenuOpen(false); genericFileRef.current?.click(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm hover:bg-white/10">📁 <span>Any file</span></button>
+          </div>}
+        </div>
         <button
           type="button"
           title={listening ? "Stop voice input" : "Speak your message"}
@@ -390,23 +370,17 @@ export default function ChatBox({
           {listening ? "⏹️" : "🎙️"}
         </button>
 
-        <input
+        <textarea
           value={input}
-          onChange={(e) =>
-            setInput(e.target.value)
-          }
+          rows={1}
+          onChange={(e) => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 144) + "px"; }}
+          onFocus={() => window.setTimeout(() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }), 250)}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }}
           placeholder="Share what's on your mind…"
-          className="flex-1 rounded-full bg-midnight-800 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-lavender-400"
+          className="min-w-0 flex-1 resize-none overflow-y-auto rounded-3xl bg-midnight-800 border border-white/10 px-4 py-3 text-base leading-6 outline-none focus:border-lavender-400"
+          style={{ maxHeight: "144px", minHeight: "48px" }}
         />
-
-        <button
-          type="submit"
-          disabled={sending}
-          className="h-10 w-10 rounded-full bg-lavender-500 hover:bg-lavender-400 disabled:opacity-50 flex items-center justify-center"
-          aria-label="Send"
-        >
-          ➤
-        </button>
+        <button type="submit" disabled={sending} className="h-12 w-12 shrink-0 rounded-full bg-lavender-500 hover:bg-lavender-400 disabled:opacity-50 flex items-center justify-center text-xl shadow-lg" aria-label="Send">➤</button>
       </form>
     </div>
   );
