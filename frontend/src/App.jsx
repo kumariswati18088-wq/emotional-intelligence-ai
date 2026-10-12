@@ -11,7 +11,7 @@ function readSavedSettings() {
   try {
     const saved = JSON.parse(localStorage.getItem("ei_settings") || "{}");
     return {
-      avatar: ["GIRL1", "GIRL2", "BOY1", "BOY2"].includes(saved.avatar) ? saved.avatar : "GIRL1",
+      avatar: ["GIRL1", "GIRL2"].includes(saved.avatar) ? saved.avatar : "GIRL1",
       voice: ["GIGI", "MATILDA", "ADAM"].includes(saved.voice) ? saved.voice : "GIGI",
       language: typeof saved.language === "string" && saved.language ? saved.language : "en",
     };

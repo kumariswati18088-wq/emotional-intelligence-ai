@@ -4,8 +4,6 @@ import { api } from "../utils/api";
 const AVATARS = [
   { key: "GIRL1", label: "Girl 1" },
   { key: "GIRL2", label: "Girl 2" },
-  { key: "BOY1", label: "Boy 1" },
-  { key: "BOY2", label: "Boy 2" },
 ];
 
 const VOICES = [
