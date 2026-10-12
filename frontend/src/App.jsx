@@ -200,7 +200,7 @@ export default function App() {
   return (
     <div className="aura-app min-h-screen flex flex-col">
       <header className="aura-header">
-        <button type="button" className="aura-icon-button" aria-label="Focus chat" onClick={() => document.getElementById("aura-chat-input")?.focus()}>☰</button>
+        
         <div className="aura-brand"><span className="aura-brand-mark">✧</span><span>Aura</span></div>
         <div className="aura-header-actions">
           <button type="button" className="aura-premium" title="Aura Premium" aria-label="Aura Premium">👑</button>

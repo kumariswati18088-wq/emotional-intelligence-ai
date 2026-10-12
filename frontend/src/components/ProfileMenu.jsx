@@ -9,7 +9,6 @@ const AVATARS = [
 const VOICES = [
   { key: "GIGI", label: "Cute Gigi" },
   { key: "MATILDA", label: "Matilda" },
-  { key: "ADAM", label: "Adam" },
 ];
 
 const LANGUAGES = [

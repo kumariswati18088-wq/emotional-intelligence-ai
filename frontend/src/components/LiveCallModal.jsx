@@ -19,7 +19,7 @@ export default function LiveCallModal({ onClose, token, language, voice, avatar,
   const [messages, setMessages] = useState([{ id: "welcome", role: "assistant", text: "Hi, I am here with you. How are you feeling?" }]);
   const [voiceMenuOpen, setVoiceMenuOpen] = useState(false);
   const chatEndRef = useRef(null);
-  const voiceOptions = [{ key: "GIGI", label: "Cute Gigi" }, { key: "MATILDA", label: "Matilda" }, { key: "ADAM", label: "Adam" }];
+  const voiceOptions = [{ key: "GIGI", label: "Cute Gigi" }, { key: "MATILDA", label: "Matilda" }];
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
