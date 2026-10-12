@@ -25,12 +25,16 @@ export default function AvatarScreen({
   onSpeechConsumed,
 }) {
   const videoRef = useRef(null);
+  const animationVideoRef = useRef(null);
+  const animationTimerRef = useRef(null);
   const sessionRef = useRef(null);
   const sessionTokenRef = useRef(null);
 
   const [status, setStatus] = useState("idle");
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [currentEmotion, setCurrentEmotion] = useState("Neutral");
+  const [animationName, setAnimationName] = useState("idle");
+  const [showEmotionAnimation, setShowEmotionAnimation] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
   // --- Step 1: Stop the current LiveAvatar session ---
@@ -132,6 +136,22 @@ export default function AvatarScreen({
     };
   }, [avatar, token, stopSession]);
 
+  // Local MP4 emotion clips are served from Vite's public directory.
+  // Keep LiveAvatar as the main stream; briefly overlay the matching clip
+  // when Aura replies, and use the idle clip whenever the stream is unavailable.
+  useEffect(() => {
+    const video = animationVideoRef.current;
+    if (!video) return;
+    video.muted = true;
+    video.loop = true;
+    const playPromise = video.play();
+    if (playPromise?.catch) playPromise.catch(() => {});
+  }, [animationName, status]);
+
+  useEffect(() => () => {
+    if (animationTimerRef.current) window.clearTimeout(animationTimerRef.current);
+  }, []);
+
   // --- Step 3: Make the avatar speak the AI response ---
   useEffect(() => {
     if (
@@ -144,9 +164,22 @@ export default function AvatarScreen({
 
     const session = sessionRef.current;
 
-    setCurrentEmotion(
-      pendingSpeech.emotion || "Neutral"
-    );
+    const rawEmotion = String(pendingSpeech.emotion || "Neutral").toLowerCase();
+    const clipName = rawEmotion.includes("cry") ? "crying"
+      : rawEmotion.includes("sad") ? "sad"
+      : rawEmotion.includes("ang") ? "angry"
+      : rawEmotion.includes("surpris") ? "surprised"
+      : rawEmotion.includes("joy") || rawEmotion.includes("laugh") || rawEmotion.includes("happy") ? "happy"
+      : rawEmotion.includes("fear") || rawEmotion.includes("think") ? "thinking"
+      : "idle";
+    setCurrentEmotion(pendingSpeech.emotion || "Neutral");
+    setAnimationName(clipName);
+    setShowEmotionAnimation(true);
+    if (animationTimerRef.current) window.clearTimeout(animationTimerRef.current);
+    animationTimerRef.current = window.setTimeout(() => {
+      setShowEmotionAnimation(false);
+      setAnimationName("idle");
+    }, 4500);
 
     setIsSpeaking(true);
 
@@ -173,12 +206,25 @@ export default function AvatarScreen({
   return (
     <div className="relative w-full aspect-square max-w-md mx-auto rounded-3xl overflow-hidden border border-white/10 bg-midnight-900 shadow-glow">
       <video
+        ref={animationVideoRef}
+        src={`/videos/aura-${animationName}.mp4`}
+        autoPlay
+        loop
+        muted
+        playsInline
+        aria-label={`Aura ${animationName} emotion animation`}
+        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
+          status !== "live" || showEmotionAnimation ? "opacity-100" : "opacity-0"
+        }`}
+      />
+
+      <video
         ref={videoRef}
         autoPlay
         playsInline
         muted={false}
         className={`w-full h-full object-cover transition-opacity duration-700 ${
-          status === "live"
+          status === "live" && !showEmotionAnimation
             ? "opacity-100"
             : "opacity-0"
         }`}
