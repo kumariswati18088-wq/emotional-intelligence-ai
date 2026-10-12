@@ -198,79 +198,47 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-        <div className="flex items-center gap-2">
-          <span className="text-xl">✦</span>
-          <h1 className="font-display text-xl">Aura</h1>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <span aria-label="Premium feature" title="Aura Premium" className="text-xl" role="img">👑</span>
-
-          <ProfileMenu
-            token={token}
-            user={user}
-            settings={settings}
-            onSettingsChange={setSettings}
-            onUserUpdate={setUser}
-            onLogout={handleLogout}
-          />
+    <div className="aura-app min-h-screen flex flex-col">
+      <header className="aura-header">
+        <button type="button" className="aura-icon-button" aria-label="Focus chat" onClick={() => document.getElementById("aura-chat-input")?.focus()}>☰</button>
+        <div className="aura-brand"><span className="aura-brand-mark">✧</span><span>Aura</span></div>
+        <div className="aura-header-actions">
+          <button type="button" className="aura-premium" title="Aura Premium" aria-label="Aura Premium">👑</button>
+          <ProfileMenu token={token} user={user} settings={settings} onSettingsChange={setSettings} onUserUpdate={setUser} onLogout={handleLogout} />
         </div>
       </header>
-
-      <main className="flex-1 grid min-h-0 lg:grid-cols-2 gap-3 sm:gap-6 max-w-6xl w-full mx-auto p-3 sm:p-6">
-        <div className="flex flex-col items-center justify-start">
-          {!callOpen && <AvatarScreen
-            token={token}
-            avatar={settings.avatar}
-            pendingSpeech={pendingSpeech}
-            onSpeechConsumed={() => setPendingSpeech(null)}
-          />}
-
-          {!callOpen && pendingSpeech?.audio && (
-            <audio
-              src={pendingSpeech.audio}
-              autoPlay
-              controls
-              aria-label="Aura voice reply"
-              className="w-full max-w-md mt-3"
-            />
-          )}
-        </div>
-
-        <div className="rounded-3xl border border-white/10 bg-midnight-900/60 overflow-hidden h-[calc(100dvh-118px)] min-h-[320px] lg:h-auto">
-          <ChatBox
-            token={token}
-            language={settings.language}
-            voice={settings.voice}
-            onAiSpeech={handleAiSpeech}
-            onAdminUnlock={setAdminToken}
-            onLiveCall={() => setCallOpen(true)}
-          />
-        </div>
+      <nav className="aura-mode-switch" aria-label="Conversation mode">
+        <button type="button" className={!callOpen ? "active" : ""} onClick={() => setCallOpen(false)}>☏ <span>Normal Chat</span></button>
+        <button type="button" className={callOpen ? "active" : ""} onClick={() => setCallOpen(true)}>▣ <span>Live Call</span></button>
+      </nav>
+      <main className="aura-main">
+        <section className="aura-chat-column">
+          <div className="aura-welcome-card">
+            <div className="aura-welcome-avatar" aria-hidden="true"><span>✧</span><i>✦</i></div>
+            <h2>Hello, I’m Aura</h2><p>Your AI companion, always here for you.</p><span className="aura-welcome-spark">✦</span>
+          </div>
+          <div className="aura-chat-panel">
+            <div className="aura-chat-heading"><span className="aura-chat-bubble">☏</span><span>Chat with Aura</span><span className="aura-online-dot" title="Ready" /></div>
+            <ChatBox token={token} language={settings.language} voice={settings.voice} onAiSpeech={handleAiSpeech} onAdminUnlock={setAdminToken} onLiveCall={() => setCallOpen(true)} />
+          </div>
+        </section>
+        <aside className="aura-side-column">
+          <div className="aura-side-avatar">
+            <div className="aura-live-badge"><span /> YOUR COMPANION</div>
+            {!callOpen && <AvatarScreen token={token} avatar={settings.avatar} pendingSpeech={pendingSpeech} onSpeechConsumed={() => setPendingSpeech(null)} />}
+            {callOpen && <div className="aura-avatar-placeholder"><span>✧</span><p>Your live call is open</p></div>}
+            <div className="aura-avatar-caption"><span className="aura-caption-orb">✦</span><div><strong>Aura</strong><small>{callOpen ? "Here with you, live" : "Ready to listen"}</small></div></div>
+          </div>
+          <div className="aura-voice-card">
+            <div><span className="aura-sound-icon">♫</span><div><strong>Voice & language</strong><small>Personalize your companion</small></div></div>
+            <label>Voice<select value={settings.voice} onChange={(e) => setSettings((v) => ({ ...v, voice: e.target.value }))}><option value="GIGI">Gigi · Feminine</option><option value="MATILDA">Matilda · Feminine</option></select></label>
+            <label>Language<select value={settings.language} onChange={(e) => setSettings((v) => ({ ...v, language: e.target.value }))}><option value="en">English</option><option value="hi">Hindi</option><option value="bn">Bengali</option><option value="ta">Tamil</option><option value="te">Telugu</option><option value="mr">Marathi</option><option value="gu">Gujarati</option><option value="pa">Punjabi</option><option value="ur">Urdu</option></select></label>
+            <p>♡ A gentle voice, whenever you need it.</p>
+          </div>
+        </aside>
       </main>
-
-      {callOpen && (
-        <LiveCallModal
-          token={token}
-          language={settings.language}
-          voice={settings.voice}
-          avatar={settings.avatar}
-          onVoiceChange={async (nextVoice) => {
-            setSettings((current) => ({ ...current, voice: nextVoice }));
-            try { await api.updateProfile(token, { voice: nextVoice }); } catch (error) { console.warn("Could not save voice setting:", error); }
-          }}
-          onClose={() => setCallOpen(false)}
-        />
-      )}
-
-      {adminToken && (
-        <AdminPanel
-          adminToken={adminToken}
-          onClose={() => setAdminToken(null)}
-        />
-      )}
+      {callOpen && <LiveCallModal token={token} language={settings.language} voice={settings.voice} avatar={settings.avatar} onVoiceChange={async (nextVoice) => { setSettings((current) => ({ ...current, voice: nextVoice })); try { await api.updateProfile(token, { voice: nextVoice }); } catch (error) { console.warn("Could not save voice setting:", error); } }} onClose={() => setCallOpen(false)} />}
+      {adminToken && <AdminPanel adminToken={adminToken} onClose={() => setAdminToken(null)} />}
     </div>
   );
 }
