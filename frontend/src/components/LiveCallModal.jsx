@@ -120,16 +120,16 @@ export default function LiveCallModal({ onClose, token, language, voice, avatar,
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#070710] text-white flex items-center justify-center p-3 sm:p-6">
-      <div className="relative flex h-[min(96dvh,960px)] w-full max-w-4xl flex-col overflow-hidden rounded-[28px] border border-white/10 bg-midnight-950 shadow-2xl">
+    <div className="aura-call-screen fixed inset-0 z-50 bg-[#070710] text-white flex items-center justify-center p-0 sm:p-3">
+      <div className="aura-call-frame relative flex h-[100dvh] w-full max-w-5xl flex-col overflow-hidden rounded-none sm:h-[min(98dvh,1000px)] sm:rounded-[28px] border border-white/10 bg-midnight-950 shadow-2xl">
         <header className="flex items-center justify-between border-b border-white/10 px-4 py-3 sm:px-6">
           <div><p className="font-semibold">Aura Live</p><p className="text-xs text-white/50">Live conversation</p></div>
           <button onClick={handleClose} className="rounded-full border border-white/10 px-4 py-2 text-sm hover:bg-white/10">Close ✕</button>
         </header>
-        <div className="relative min-h-0 flex-1 overflow-y-auto p-3 pb-5 sm:p-6">
-          <div className="mx-auto w-full max-w-md pt-28 sm:pt-36">
-            <AvatarScreen pendingSpeech={pendingSpeech} onSpeechConsumed={() => setPendingSpeech(null)} />
-            <section className="mt-4 flex h-[38dvh] min-h-[220px] max-h-[420px] flex-none flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
+        <div className="aura-call-content relative min-h-0 flex-1 overflow-hidden p-2 sm:p-4">
+          <div className="aura-call-layout mx-auto flex h-full w-full max-w-3xl min-h-0 flex-col gap-3">
+            <div className="aura-call-video"><AvatarScreen pendingSpeech={pendingSpeech} onSpeechConsumed={() => setPendingSpeech(null)} /></div>
+            <section className="aura-call-chat mt-0 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
               <button type="button" onClick={() => setVoiceMenuOpen((open) => !open)} aria-expanded={voiceMenuOpen} className="flex items-center justify-between border-b border-white/10 px-4 py-3 text-left hover:bg-white/5">
                 <span className="font-semibold">💬 Chat with Aura</span><span className="text-xs text-teal-200">{voiceMenuOpen ? "Close voices ▲" : "Change voice ▾"}</span>
               </button>
@@ -142,7 +142,7 @@ export default function LiveCallModal({ onClose, token, language, voice, avatar,
               </div>
             </section>
           </div>
-          <div className="absolute right-3 top-3 h-40 w-28 overflow-hidden rounded-[22px] border-2 border-teal-200/70 bg-black shadow-2xl sm:right-6 sm:top-6 sm:h-56 sm:w-40">
+          <div className="aura-local-preview absolute right-3 top-3 h-28 w-20 overflow-hidden rounded-2xl border-2 border-teal-200/70 bg-black shadow-2xl sm:right-6 sm:top-5 sm:h-40 sm:w-28">
             <video ref={localVideoRef} autoPlay playsInline muted className={"h-full w-full object-cover " + (camOn ? "" : "hidden")} />
             {!camOn && <div className="flex h-full items-center justify-center text-xs text-white/50">Camera off</div>}
           </div>
@@ -150,15 +150,15 @@ export default function LiveCallModal({ onClose, token, language, voice, avatar,
         </div>
         <form onSubmit={sendMessage} className="shrink-0 border-t border-white/10 bg-black/50 p-3 pb-[max(16px,env(safe-area-inset-bottom))] backdrop-blur-xl sm:p-4">
           <div className="mx-auto flex w-full max-w-2xl items-end gap-2">
-            <button type="button" onClick={startVoiceInput} disabled={busy || listening || !micOn} title="Voice input" className={"h-12 w-12 shrink-0 rounded-full border border-white/10 text-xl " + (listening ? "bg-rose-500/30" : "bg-white/10 hover:bg-white/15")}>{listening ? "🔴" : "🎙️"}</button>
-            <textarea value={input} onChange={(e) => { setInput(e.target.value); e.target.style.height="auto"; e.target.style.height=Math.min(e.target.scrollHeight,112)+"px"; }} rows={1} placeholder="Message Aura…" className="max-h-28 min-h-12 min-w-0 flex-1 resize-none overflow-y-auto rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-base leading-6 outline-none focus:border-teal-300" />
+            <button type="button" onClick={startVoiceInput} disabled={busy || listening || !micOn} title="Voice input" className={"h-12 w-12 shrink-0 rounded-full border border-white/10 text-xl " + (listening ? "bg-rose-500/30" : "bg-white/10 hover:bg-white/15")}>{listening ? "■" : "◖"}</button>
+            <textarea value={input} onChange={(e) => { setInput(e.target.value); e.target.style.height="auto"; e.target.style.height=Math.min(e.target.scrollHeight,112)+"px"; }} rows={1} placeholder="Message Aura…" className="aura-call-input max-h-28 min-h-12 min-w-0 flex-1 resize-none overflow-y-auto rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-base leading-6 outline-none focus:border-teal-300" />
             <button type="submit" disabled={busy || !input.trim()} className="h-14 w-14 shrink-0 rounded-2xl bg-teal-300 text-2xl font-semibold text-midnight-950 shadow-lg disabled:opacity-40" aria-label="Send message">➤</button>
           </div>
           <div className="mx-auto mt-3 flex w-full max-w-2xl flex-wrap items-center justify-center gap-2 sm:gap-3">
-            <button type="button" onClick={toggleMic} className={"h-12 rounded-2xl border border-white/10 px-4 text-sm font-medium sm:px-5 " + (micOn ? "bg-white/10 hover:bg-white/15" : "bg-rose-500/30")}>{micOn ? "🎙️ Mic on" : "🔇 Mic off"}</button>
-            <button type="button" onClick={toggleCam} className={"h-12 rounded-2xl border border-white/10 px-4 text-sm font-medium sm:px-5 " + (camOn ? "bg-white/10 hover:bg-white/15" : "bg-rose-500/30")}>{camOn ? "📷 Camera" : "🚫 Camera off"}</button>
-            <button type="button" onClick={flipCamera} className="h-12 rounded-2xl border border-white/10 bg-white/10 px-4 text-sm font-medium hover:bg-white/15 sm:px-5">🔄 Flip</button>
-            <button type="button" onClick={handleClose} className="h-12 rounded-2xl bg-rose-500 px-6 font-semibold text-white shadow-lg hover:bg-rose-400">End</button>
+            <button type="button" onClick={toggleMic} className={"h-12 rounded-2xl border border-white/10 px-4 text-sm font-medium sm:px-5 " + (micOn ? "bg-white/10 hover:bg-white/15" : "bg-rose-500/30")}><span className="aura-control-icon" aria-hidden="true">◖</span>{micOn ? "Mic on" : "Mic off"}</button>
+            <button type="button" onClick={toggleCam} className={"h-12 rounded-2xl border border-white/10 px-4 text-sm font-medium sm:px-5 " + (camOn ? "bg-white/10 hover:bg-white/15" : "bg-rose-500/30")}><span className="aura-control-icon" aria-hidden="true">▣</span>{camOn ? "Camera" : "Camera off"}</button>
+            <button type="button" onClick={flipCamera} className="h-12 rounded-2xl border border-white/10 bg-white/10 px-4 text-sm font-medium hover:bg-white/15 sm:px-5"><span className="aura-control-icon" aria-hidden="true">⟳</span>Rotate</button>
+            <button type="button" onClick={handleClose} className="h-12 rounded-2xl bg-rose-500 px-6 font-semibold text-white shadow-lg hover:bg-rose-400"><span className="aura-control-icon" aria-hidden="true">☎</span>End Call</button>
           </div>
         </form>
       </div>
