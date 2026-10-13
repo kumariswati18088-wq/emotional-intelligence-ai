@@ -16,6 +16,7 @@ export default function LiveCallModal({ onClose, token, language, voice, avatar,
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false);
   const [audioSrc, setAudioSrc] = useState("");
+  const [pendingSpeech, setPendingSpeech] = useState(null);
   const [messages, setMessages] = useState([{ id: "welcome", role: "assistant", text: "Hi, I am here with you. How are you feeling?" }]);
   const [voiceMenuOpen, setVoiceMenuOpen] = useState(false);
   const chatEndRef = useRef(null);
@@ -101,6 +102,7 @@ export default function LiveCallModal({ onClose, token, language, voice, avatar,
       const result = await api.sendChat(token, { message, language, voice, history: [...messages, { role: "user", text: message }].slice(-50).map((item) => ({ role: item.role, text: item.text })) });
       const text = result?.reply || "I couldn't generate a response. Please try again.";
       setReply(text);
+      setPendingSpeech({ text, emotion: result?.emotion || "Neutral" });
       setMessages((items) => [...items, { id: String(Date.now()) + "-assistant", role: "assistant", text }]);
       setAudioSrc(result?.audio || "");
       if (!result?.audio) {
@@ -126,7 +128,7 @@ export default function LiveCallModal({ onClose, token, language, voice, avatar,
         </header>
         <div className="relative min-h-0 flex-1 overflow-y-auto p-3 pb-5 sm:p-6">
           <div className="mx-auto w-full max-w-md pt-28 sm:pt-36">
-            <AvatarScreen token={token} avatar={avatar} pendingSpeech={null} onSpeechConsumed={() => {}} />
+            <AvatarScreen pendingSpeech={pendingSpeech} onSpeechConsumed={() => setPendingSpeech(null)} />
             <section className="mt-4 flex h-[38dvh] min-h-[220px] max-h-[420px] flex-none flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
               <button type="button" onClick={() => setVoiceMenuOpen((open) => !open)} aria-expanded={voiceMenuOpen} className="flex items-center justify-between border-b border-white/10 px-4 py-3 text-left hover:bg-white/5">
                 <span className="font-semibold">💬 Chat with Aura</span><span className="text-xs text-teal-200">{voiceMenuOpen ? "Close voices ▲" : "Change voice ▾"}</span>
