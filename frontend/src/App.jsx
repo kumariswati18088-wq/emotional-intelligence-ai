@@ -198,44 +198,23 @@ export default function App() {
   }
 
   return (
-    <div className="aura-app min-h-screen flex flex-col">
+    <div className={`aura-app aura-shell ${callOpen ? "is-call-open" : ""}`}>
       <header className="aura-header">
-        
         <div className="aura-brand"><span className="aura-brand-mark">✧</span><span>Aura</span></div>
         <div className="aura-header-actions">
-          <button type="button" className="aura-premium" title="Aura Premium" aria-label="Aura Premium">👑</button>
+          <button type="button" className="aura-premium" title="Aura Premium" aria-label="Aura Premium" onClick={() => window.dispatchEvent(new CustomEvent("aura:premium"))}><span aria-hidden="true">♛</span></button>
           <ProfileMenu token={token} user={user} settings={settings} onSettingsChange={setSettings} onUserUpdate={setUser} onLogout={handleLogout} />
         </div>
       </header>
-      <nav className="aura-mode-switch" aria-label="Conversation mode">
-        <button type="button" className={!callOpen ? "active" : ""} onClick={() => setCallOpen(false)}>☏ <span>Normal Chat</span></button>
-        <button type="button" className={callOpen ? "active" : ""} onClick={() => setCallOpen(true)}>▣ <span>Live Call</span></button>
-      </nav>
-      <main className="aura-main">
-        <section className="aura-chat-column">
-          <div className="aura-welcome-card">
-            <div className="aura-welcome-avatar" aria-hidden="true"><span>✧</span><i>✦</i></div>
-            <h2>Hello, I’m Aura</h2><p>Your AI companion, always here for you.</p><span className="aura-welcome-spark">✦</span>
-          </div>
-          <div className="aura-chat-panel">
-            <div className="aura-chat-heading"><span className="aura-chat-bubble">☏</span><span>Chat with Aura</span><span className="aura-online-dot" title="Ready" /></div>
-            <ChatBox token={token} language={settings.language} voice={settings.voice} onAiSpeech={handleAiSpeech} onAdminUnlock={setAdminToken} onLiveCall={() => setCallOpen(true)} />
-          </div>
+      <main className="aura-main aura-main-single">
+        <section className="aura-video-stage" aria-label="Aura video">
+          <AvatarScreen token={token} avatar={settings.avatar} pendingSpeech={pendingSpeech} onSpeechConsumed={() => setPendingSpeech(null)} />
+          <div className="aura-stage-caption"><span className="aura-caption-orb">✦</span><div><strong>Aura</strong><small>Here with you, always</small></div><span className="aura-online-dot" /></div>
         </section>
-        <aside className="aura-side-column">
-          <div className="aura-side-avatar">
-            <div className="aura-live-badge"><span /> YOUR COMPANION</div>
-            {!callOpen && <AvatarScreen token={token} avatar={settings.avatar} pendingSpeech={pendingSpeech} onSpeechConsumed={() => setPendingSpeech(null)} />}
-            {callOpen && <div className="aura-avatar-placeholder"><span>✧</span><p>Your live call is open</p></div>}
-            <div className="aura-avatar-caption"><span className="aura-caption-orb">✦</span><div><strong>Aura</strong><small>{callOpen ? "Here with you, live" : "Ready to listen"}</small></div></div>
-          </div>
-          <div className="aura-voice-card">
-            <div><span className="aura-sound-icon">♫</span><div><strong>Voice & language</strong><small>Personalize your companion</small></div></div>
-            <label>Voice<select value={settings.voice} onChange={(e) => setSettings((v) => ({ ...v, voice: e.target.value }))}><option value="GIGI">Gigi · Feminine</option><option value="MATILDA">Matilda · Feminine</option></select></label>
-            <label>Language<select value={settings.language} onChange={(e) => setSettings((v) => ({ ...v, language: e.target.value }))}><option value="en">English</option><option value="hi">Hindi</option><option value="bn">Bengali</option><option value="ta">Tamil</option><option value="te">Telugu</option><option value="mr">Marathi</option><option value="gu">Gujarati</option><option value="pa">Punjabi</option><option value="ur">Urdu</option></select></label>
-            <p>♡ A gentle voice, whenever you need it.</p>
-          </div>
-        </aside>
+        <section className="aura-chat-panel aura-chat-panel-main">
+          <div className="aura-chat-heading"><span className="aura-chat-bubble" aria-hidden="true">◌</span><span>Chat with Aura</span><span className="aura-online-dot" title="Ready" /></div>
+          <ChatBox token={token} language={settings.language} voice={settings.voice} onAiSpeech={handleAiSpeech} onAdminUnlock={setAdminToken} onLiveCall={() => setCallOpen(true)} />
+        </section>
       </main>
       {callOpen && <LiveCallModal token={token} language={settings.language} voice={settings.voice} avatar={settings.avatar} onVoiceChange={async (nextVoice) => { setSettings((current) => ({ ...current, voice: nextVoice })); try { await api.updateProfile(token, { voice: nextVoice }); } catch (error) { console.warn("Could not save voice setting:", error); } }} onClose={() => setCallOpen(false)} />}
       {adminToken && <AdminPanel adminToken={adminToken} onClose={() => setAdminToken(null)} />}
