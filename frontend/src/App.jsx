@@ -32,6 +32,7 @@ export default function App() {
   const [pendingSpeech, setPendingSpeech] = useState(null);
   const [adminToken, setAdminToken] = useState(null);
   const [callOpen, setCallOpen] = useState(false);
+  const [auraThinking, setAuraThinking] = useState(false);
 
   // App ko loading screen par permanently lock nahi karna hai.
   const [booting, setBooting] = useState(false);
@@ -208,12 +209,12 @@ export default function App() {
       </header>
       <main className="aura-main aura-main-single">
         <section className="aura-video-stage" aria-label="Aura video">
-          <AvatarScreen token={token} avatar={settings.avatar} pendingSpeech={pendingSpeech} onSpeechConsumed={() => setPendingSpeech(null)} />
+          <AvatarScreen token={token} avatar={settings.avatar} pendingSpeech={pendingSpeech} thinking={auraThinking} onSpeechConsumed={() => setPendingSpeech(null)} />
           <div className="aura-stage-caption"><span className="aura-caption-orb">✦</span><div><strong>Aura</strong><small>Here with you, always</small></div><span className="aura-online-dot" /></div>
         </section>
         <section className="aura-chat-panel aura-chat-panel-main">
           <div className="aura-chat-heading"><span className="aura-chat-bubble" aria-hidden="true">◌</span><span>Chat with Aura</span><span className="aura-online-dot" title="Ready" /></div>
-          <ChatBox token={token} language={settings.language} voice={settings.voice} onAiSpeech={handleAiSpeech} onAdminUnlock={setAdminToken} onLiveCall={() => setCallOpen(true)} />
+          <ChatBox token={token} language={settings.language} voice={settings.voice} onAiSpeech={handleAiSpeech} onAdminUnlock={setAdminToken} onLiveCall={() => setCallOpen(true)} onThinkingChange={setAuraThinking} />
         </section>
       </main>
       {callOpen && <LiveCallModal token={token} language={settings.language} voice={settings.voice} avatar={settings.avatar} onVoiceChange={async (nextVoice) => { setSettings((current) => ({ ...current, voice: nextVoice })); try { await api.updateProfile(token, { voice: nextVoice }); } catch (error) { console.warn("Could not save voice setting:", error); } }} onClose={() => setCallOpen(false)} />}
