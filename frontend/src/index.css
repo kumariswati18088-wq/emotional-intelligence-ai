@@ -123,3 +123,49 @@ body { margin: 0; background: #030817; }
   .aura-chat-column { position:relative; }
   .aura-side-column { position:sticky;top:88px; }
 }
+
+
+/* Responsive full-screen Aura layout */
+html, body, #root { min-height: 100%; width: 100%; }
+body { overflow-x: hidden; }
+.aura-shell { min-height: 100dvh; height: 100dvh; display:flex; flex-direction:column; overflow:hidden; }
+.aura-shell .aura-header { flex:0 0 auto; min-height:62px; padding:10px clamp(14px,3vw,30px); }
+.aura-shell .aura-main-single { flex:1 1 auto; min-height:0; width:min(100%, 1040px); margin:0 auto; padding:clamp(10px,2vh,22px) clamp(12px,3vw,28px) max(10px,env(safe-area-inset-bottom)); display:flex; flex-direction:column; gap:12px; }
+.aura-video-stage { position:relative; flex:0 0 auto; width:100%; min-height:0; max-height:38dvh; overflow:hidden; border:1px solid rgba(72,113,255,.45); border-radius:24px; background:radial-gradient(ellipse at 50% 30%,#14265a,#050b1c 72%); box-shadow:0 0 28px rgba(51,91,255,.12); }
+.aura-video-stage .aura-video-frame { width:100%; max-width:none; height:clamp(190px,34dvh,390px); min-height:0; aspect-ratio:auto; border:0; border-radius:0; box-shadow:none; background:transparent; }
+.aura-video-stage .aura-emotion-video { object-fit:contain; object-position:center center; }
+.aura-stage-caption { position:absolute; left:12px; right:12px; bottom:10px; display:flex; align-items:center; gap:10px; padding:9px 12px; border:1px solid rgba(255,255,255,.14); border-radius:16px; background:rgba(3,8,24,.76); backdrop-filter:blur(14px); pointer-events:none; }
+.aura-stage-caption strong,.aura-stage-caption small { display:block; }
+.aura-stage-caption small { margin-top:2px; font-size:11px; color:#aab8e9; }
+.aura-stage-caption .aura-caption-orb { width:34px;height:34px;flex:0 0 auto; }
+.aura-chat-panel-main { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
+.aura-chat-panel-main > .flex.flex-col.h-full { flex:1 1 auto; height:auto; min-height:0; }
+.aura-chat-panel-main .chat-composer { flex:0 0 auto; position:relative; }
+.aura-chat-panel-main .flex-1.overflow-y-auto { min-height:0; overscroll-behavior:contain; }
+.aura-shell .aura-header-actions { gap:10px; }
+.aura-shell .aura-premium { cursor:pointer; width:40px;height:40px;border-radius:50%;background:rgba(35,47,105,.5);color:#ffcf57; }
+.aura-shell .aura-brand-mark { color:#38e7ff; }
+.aura-shell textarea { field-sizing:content; }
+.aura-shell .chat-composer textarea { max-height:120px; min-height:44px; }
+.attachment-icon { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; color:#c5a4ff; font-weight:700; font-size:17px; }
+@media (max-width:760px) {
+  .aura-shell .aura-header { min-height:54px; padding:7px 13px; }
+  .aura-shell .aura-brand { font-size:21px; }
+  .aura-shell .aura-brand-mark { width:32px;height:32px;font-size:36px; }
+  .aura-shell .aura-main-single { width:100%; padding:8px 9px max(8px,env(safe-area-inset-bottom)); gap:9px; }
+  .aura-video-stage { max-height:32dvh; border-radius:19px; }
+  .aura-video-stage .aura-video-frame { height:clamp(165px,29dvh,290px); }
+  .aura-stage-caption { bottom:7px; left:8px; right:8px; padding:6px 9px; }
+  .aura-stage-caption .aura-caption-orb { width:28px;height:28px;font-size:20px; }
+  .aura-chat-panel { border-radius:19px; }
+  .aura-chat-heading { padding:10px 13px; font-size:15px; }
+  .aura-chat-panel-main > .flex.flex-col.h-full { height:auto; min-height:0; }
+  .aura-chat-panel-main .chat-composer { padding:8px; gap:6px; }
+  .aura-chat-panel-main .chat-composer > button, .aura-chat-panel-main .chat-composer .relative > button { width:40px;height:42px; border-radius:14px; font-size:18px; }
+}
+@media (min-width:761px) { .aura-video-stage { max-height:36dvh; } }
+@media (max-height:680px) {
+  .aura-shell .aura-main-single { padding-top:6px; gap:7px; }
+  .aura-video-stage { max-height:29dvh; }
+  .aura-video-stage .aura-video-frame { height:clamp(135px,26dvh,230px); }
+}
