@@ -416,11 +416,11 @@ export default function ChatBox({
         <div className="relative shrink-0">
           <button type="button" title="Add attachment" aria-label="Add attachment" aria-expanded={attachMenuOpen} onClick={() => setAttachMenuOpen((v) => !v)} className="h-12 w-12 rounded-2xl border border-white/15 bg-white/5 hover:bg-white/10 flex items-center justify-center text-3xl shrink-0">＋</button>
           {attachMenuOpen && <div className="absolute bottom-14 left-0 z-30 w-52 rounded-2xl border border-white/10 bg-midnight-900 p-2 shadow-2xl">
-            <button type="button" onClick={() => { setAttachMenuOpen(false); imageInputRef.current?.click(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm hover:bg-white/10">🖼️ <span>Photo</span></button>
-            <button type="button" onClick={() => { setAttachMenuOpen(false); videoInputRef.current?.click(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm hover:bg-white/10">🎬 <span>Video</span></button>
-            <button type="button" onClick={() => { setAttachMenuOpen(false); docInputRef.current?.click(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm hover:bg-white/10">📄 <span>Document</span></button>
-            <button type="button" onClick={() => { setAttachMenuOpen(false); pdfInputRef.current?.click(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm hover:bg-white/10">📕 <span>PDF</span></button>
-            <button type="button" onClick={() => { setAttachMenuOpen(false); genericFileRef.current?.click(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm hover:bg-white/10">📁 <span>Any file</span></button>
+            <button type="button" onClick={() => { setAttachMenuOpen(false); imageInputRef.current?.click(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm hover:bg-white/10"><span className="attachment-icon">▧</span> <span>Photo</span></button>
+            <button type="button" onClick={() => { setAttachMenuOpen(false); videoInputRef.current?.click(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm hover:bg-white/10"><span className="attachment-icon">▣</span> <span>Video</span></button>
+            <button type="button" onClick={() => { setAttachMenuOpen(false); docInputRef.current?.click(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm hover:bg-white/10"><span className="attachment-icon">▤</span> <span>Document</span></button>
+            <button type="button" onClick={() => { setAttachMenuOpen(false); pdfInputRef.current?.click(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm hover:bg-white/10"><span className="attachment-icon">PDF</span> <span>PDF</span></button>
+            <button type="button" onClick={() => { setAttachMenuOpen(false); genericFileRef.current?.click(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm hover:bg-white/10"><span className="attachment-icon">▱</span> <span>File</span></button>
           </div>}
         </div>
         <textarea
@@ -428,7 +428,8 @@ export default function ChatBox({
           value={input}
           rows={1}
           onChange={(e) => setInput(e.target.value)}
-          onFocus={(e) => { window.setTimeout(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); e.currentTarget.scrollIntoView?.({ block: "nearest", behavior: "smooth" }); }, 250); }}
+          onFocus={(e) => { e.currentTarget.dataset.focused = "true"; window.setTimeout(() => { composerRef.current?.scrollIntoView?.({ block: "nearest", behavior: "smooth" }); }, 120); }}
+          onBlur={(e) => { delete e.currentTarget.dataset.focused; }}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }}
           placeholder="Share what's on your mind…"
           className="min-w-0 flex-1 resize-none overflow-y-auto rounded-3xl bg-midnight-800 border border-white/10 px-4 py-3 text-base leading-6 outline-none focus:border-lavender-400"
@@ -439,7 +440,7 @@ export default function ChatBox({
         <button type="submit" disabled={sending || (!input.trim() && attachments.length === 0)} className="h-12 w-12 shrink-0 rounded-full bg-lavender-500 hover:bg-lavender-400 disabled:opacity-50 flex items-center justify-center text-xl shadow-lg" aria-label="Send">➤</button>
       </form>
       {emojiMenuOpen && <div className="grid grid-cols-6 gap-1 px-3 pb-2">{["😀","😂","🥹","😊","😍","😎","😭","😡","👍","🙏","❤️","✨"].map((emoji) => <button key={emoji} type="button" onClick={() => { setInput((v) => v + emoji); setEmojiMenuOpen(false); }} className="rounded-lg p-2 text-xl hover:bg-white/10">{emoji}</button>)}</div>}
-      <button type="button" onClick={onLiveCall} className="mx-3 mb-3 flex w-[calc(100%-1.5rem)] items-center justify-center gap-2 rounded-2xl border border-teal-300/30 bg-teal-400/15 px-4 py-3 font-semibold text-teal-100 hover:bg-teal-400/25"><span>📞</span> Live Call</button>
+      <button type="button" onClick={onLiveCall} className="mx-3 mb-3 flex w-[calc(100%-1.5rem)] items-center justify-center gap-2 rounded-2xl border border-teal-300/30 bg-teal-400/15 px-4 py-3 font-semibold text-teal-100 hover:bg-teal-400/25"><span>☎</span> Live Call</button>
     </div>
   );
 }
