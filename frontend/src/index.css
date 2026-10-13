@@ -201,3 +201,25 @@ body { overflow-x: hidden; }
   .aura-call-video { max-height:31dvh; }
   .aura-call-video .aura-video-frame { height:clamp(125px,29dvh,210px); }
 }
+
+/* Final mobile-first proportions: use the full available width for Aura's video. */
+.aura-shell .aura-main-single { width:100%; max-width:1100px; }
+.aura-video-stage { display:flex; flex-direction:column; align-items:stretch; height:clamp(225px,34dvh,390px); max-height:none; }
+.aura-video-stage .aura-video-frame { flex:1 1 auto; width:100%; height:100%; min-height:0; }
+.aura-video-stage .aura-emotion-video { object-fit:cover; object-position:center 32%; }
+.aura-video-stage .aura-stage-caption { z-index:5; }
+.aura-chat-panel-main { flex:1 1 0; }
+.aura-chat-panel-main > .flex.flex-col.h-full { min-height:0; }
+.aura-chat-panel-main .flex-1.overflow-y-auto { flex:1 1 0; overflow-y:auto; }
+.aura-shell .chat-composer textarea { max-height:120px; min-height:44px; }
+@media (max-width:760px) {
+ .aura-shell .aura-main-single { padding:8px 9px max(8px,env(safe-area-inset-bottom)); gap:9px; }
+ .aura-video-stage { height:clamp(225px,31dvh,330px); border-radius:19px; }
+ .aura-video-stage .aura-video-frame { height:100%; }
+ .aura-video-stage .aura-emotion-video { object-fit:cover; object-position:center 30%; }
+ .aura-stage-caption { bottom:7px; }
+ .aura-chat-panel-main .chat-composer { flex-wrap:nowrap; }
+}
+@media (min-width:761px) {
+ .aura-video-stage { height:clamp(280px,38dvh,430px); }
+}
