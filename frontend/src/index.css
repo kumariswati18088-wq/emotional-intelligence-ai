@@ -169,3 +169,35 @@ body { overflow-x: hidden; }
   .aura-video-stage { max-height:29dvh; }
   .aura-video-stage .aura-video-frame { height:clamp(135px,26dvh,230px); }
 }
+
+/* Dedicated Live Call viewport */
+.aura-call-screen { background:radial-gradient(ellipse at 50% 0%,#101c43,#05050d 65%); }
+.aura-call-frame { border-color:rgba(65,113,255,.28); }
+.aura-call-content { display:flex; flex-direction:column; }
+.aura-call-layout { gap:10px; }
+.aura-call-video { position:relative; flex:0 0 auto; width:100%; min-height:0; max-height:43dvh; overflow:hidden; border:1px solid rgba(72,113,255,.4); border-radius:22px; background:radial-gradient(ellipse at center,#17265a,#050b1c 78%); }
+.aura-call-video .aura-video-frame { width:100%; max-width:none; height:clamp(210px,40dvh,430px); aspect-ratio:auto; border:0; border-radius:0; box-shadow:none; background:transparent; }
+.aura-call-video .aura-emotion-video { object-fit:contain; }
+.aura-call-chat { flex:1 1 auto; min-height:0; }
+.aura-call-chat > div.overflow-y-auto { overscroll-behavior:contain; }
+.aura-local-preview { z-index:8; }
+.aura-control-icon { display:inline-grid; place-items:center; margin-right:7px; font-size:20px; line-height:1; color:#a8dfff; }
+.aura-call-screen button { transition:background-color .16s ease,border-color .16s ease,transform .16s ease; }
+.aura-call-screen button:active { transform:scale(.98); }
+@media (max-width:760px) {
+  .aura-call-content { padding:8px; }
+  .aura-call-layout { gap:8px; }
+  .aura-call-video { max-height:36dvh; border-radius:18px; }
+  .aura-call-video .aura-video-frame { height:clamp(170px,33dvh,285px); }
+  .aura-call-chat { border-radius:17px; }
+  .aura-call-screen form { padding:8px; }
+  .aura-call-screen form > div:first-child { gap:6px; }
+  .aura-call-screen form button { min-height:42px; }
+  .aura-call-screen form > div:last-child { margin-top:7px; gap:6px; }
+  .aura-call-screen form > div:last-child button { flex:1 1 calc(25% - 6px); padding-left:7px; padding-right:7px; font-size:12px; }
+  .aura-local-preview { height:86px; width:64px; top:8px; right:8px; border-width:1px; }
+}
+@media (max-height:680px) {
+  .aura-call-video { max-height:31dvh; }
+  .aura-call-video .aura-video-frame { height:clamp(125px,29dvh,210px); }
+}
