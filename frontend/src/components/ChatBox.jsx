@@ -12,6 +12,7 @@ export default function ChatBox({
   onAiSpeech,
   onAdminUnlock,
   onLiveCall,
+  onThinkingChange,
 }) {
   const [messages, setMessages] = useState([
     {
@@ -228,6 +229,7 @@ export default function ChatBox({
     setInput("");
     setAttachments([]);
     setSending(true);
+    onThinkingChange?.(true);
 
     try {
       const { reply, emotion, audio } =
@@ -272,6 +274,7 @@ export default function ChatBox({
       );
     } finally {
       setSending(false);
+      onThinkingChange?.(false);
     }
   }
 
