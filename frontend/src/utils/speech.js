@@ -69,16 +69,20 @@ export function speakAuraText(text, { language = "en", voice = "GIGI" } = {}) {
 
     // Some browsers load their voice list asynchronously.
     if (!chooseVoice()) {
+      let spoken = false;
       const onVoicesChanged = () => {
         synthesis.removeEventListener?.("voiceschanged", onVoicesChanged);
+        if (spoken) return;
         chooseVoice();
+        spoken = true;
         synthesis.speak(utterance);
       };
       synthesis.addEventListener?.("voiceschanged", onVoicesChanged, { once: true });
       // If voiceschanged never fires, still speak with the device default.
       window.setTimeout(() => {
         synthesis.removeEventListener?.("voiceschanged", onVoicesChanged);
-        if (utterance.voice || synthesis.speaking) return;
+        if (spoken) return;
+        spoken = true;
         synthesis.speak(utterance);
       }, 1200);
       return true;
