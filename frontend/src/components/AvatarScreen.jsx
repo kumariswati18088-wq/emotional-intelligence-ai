@@ -22,6 +22,7 @@ function clipFor(value, replyText = "") {
   return "idle";
 }
 const src = (name) => "/videos/aura-" + name + ".mp4";
+const githubSrc = (name) => "https://raw.githubusercontent.com/kumariswati18088-wq/emotional-intelligence-ai/main/frontend/public/videos/aura-" + name + ".mp4";
 export default function AvatarScreen({ pendingSpeech, onSpeechConsumed, thinking = false }) {
   const videos = [useRef(null), useRef(null)];
   const [active, setActive] = useState(0);
@@ -50,6 +51,8 @@ export default function AvatarScreen({ pendingSpeech, onSpeechConsumed, thinking
       busyRef.current = false;
     };
     el.addEventListener("canplay", reveal, { once: true });
+    el.dataset.clip = next;
+    el.dataset.githubFallback = "0";
     el.src = src(next);
     el.load();
     if (el.readyState >= 3) reveal();
@@ -66,7 +69,7 @@ export default function AvatarScreen({ pendingSpeech, onSpeechConsumed, thinking
       if (!el) return;
       el.muted = true;
       // Keep both video layers mounted and preloaded so the next emotion is ready off-screen.
-      if (!el.getAttribute("src")) { el.src = src(i === 0 ? "idle" : "happy"); el.load(); }
+      if (!el.getAttribute("src")) { const initialClip = i === 0 ? "idle" : "happy"; el.dataset.clip = initialClip; el.dataset.githubFallback = "0"; el.src = src(initialClip); el.load(); }
       if (i === active) { el.play().catch(() => {}); }
     });
   }, []);
@@ -95,7 +98,7 @@ export default function AvatarScreen({ pendingSpeech, onSpeechConsumed, thinking
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
   return (
     <div className="relative aura-video-frame mx-auto w-full overflow-hidden rounded-3xl border border-white/10 bg-midnight-900 shadow-glow">
-      {videos.map((ref, i) => <video key={i} ref={ref} autoPlay loop muted playsInline preload="auto" aria-hidden="true" className="aura-emotion-video absolute inset-0 h-full w-full object-cover" style={{ opacity: active === i ? 1 : 0, transition: "opacity 180ms ease-in-out", zIndex: active === i ? 2 : 1 }} onError={() => { if (i === active && clip !== "idle") switchClip("idle"); }} />)}
+      {videos.map((ref, i) => <video key={i} ref={ref} autoPlay loop muted playsInline preload="auto" aria-hidden="true" className="aura-emotion-video absolute inset-0 h-full w-full object-cover" style={{ opacity: active === i ? 1 : 0, transition: "opacity 180ms ease-in-out", zIndex: active === i ? 2 : 1 }} onError={(event) => { const el = event.currentTarget; const name = el.dataset.clip || clip || "idle"; if (el.dataset.githubFallback !== "1") { el.dataset.githubFallback = "1"; el.src = githubSrc(name); el.load(); el.play().catch(() => {}); } }} />)}
       <div className="absolute left-3 top-3 z-10 flex items-center gap-2 rounded-full bg-black/65 px-3 py-1 text-xs text-white backdrop-blur"><span className="h-2 w-2 rounded-full bg-teal-300" />{thinking ? "🤔 Thinking" : (LABELS[clip] || emotionLabel)}</div>
     </div>
   );
