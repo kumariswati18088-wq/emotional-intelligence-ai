@@ -148,7 +148,8 @@ export default function ChatBox({
   }
 
   async function handleSend(e) {
-    e.preventDefault();
+    e?.preventDefault?.();
+    if (sending) return;
 
     const trimmed = input.trim();
 
@@ -232,15 +233,20 @@ export default function ChatBox({
     onThinkingChange?.(true);
 
     try {
-      const { reply, emotion, audio } =
-        await api.sendChat(token, {
-          message:
-            trimmed || "(shared an attachment)",
-          language,
-          voice,
-          history,
-          attachments: encodedAttachments.map(({ name, kind, type, size, data }) => ({ name, kind, type, size, data })),
-        });
+      const result = await api.sendChat(token, {
+        message: trimmed || "(shared an attachment)",
+        language,
+        voice,
+        history,
+        attachments: encodedAttachments.map(({ name, kind, type, size, data }) => ({ name, kind, type, size, data })),
+      });
+      const reply = typeof result?.reply === "string"
+        ? result.reply
+        : typeof result?.reply?.text === "string"
+          ? result.reply.text
+          : "I received your message, but I couldn’t prepare a text reply. Please try again.";
+      const emotion = typeof result?.emotion === "string" ? result.emotion : "Neutral";
+      const audio = typeof result?.audio === "string" ? result.audio : "";
 
       const assistantMessage = {
         role: "assistant",
@@ -255,11 +261,11 @@ export default function ChatBox({
         ].slice(-MAX_HISTORY_MESSAGES)
       );
 
-      onAiSpeech({
-        text: reply,
-        emotion,
-        audio,
-      });
+      try {
+        onAiSpeech?.({ text: reply, emotion, audio });
+      } catch (speechError) {
+        console.error("Aura speech playback failed:", speechError);
+      }
       if (audio) setAudioReply(audio);
     } catch (err) {
       setMessages((prev) =>
