@@ -223,3 +223,52 @@ body { overflow-x: hidden; }
 @media (min-width:761px) {
  .aura-video-stage { height:clamp(280px,38dvh,430px); }
 }
+
+/* Aura video: keep the full portrait frame visible; never crop the head/body. */
+html, body, #root { min-height:100%; height:auto; overflow-y:auto; }
+.aura-shell { min-height:100dvh; height:auto; overflow:visible; }
+.aura-shell .aura-main-single {
+  height:auto !important;
+  min-height:calc(100dvh - 78px);
+  overflow:visible !important;
+  align-items:stretch;
+}
+.aura-shell .aura-video-stage {
+  flex:0 0 auto;
+  height:clamp(420px, 62dvh, 720px);
+  min-height:420px;
+  overflow:hidden;
+  background:linear-gradient(145deg,#08142f,#030817 72%);
+}
+.aura-shell .aura-video-stage .aura-video-frame {
+  height:100%;
+  min-height:0;
+  background:transparent;
+  border:0;
+  border-radius:inherit;
+  box-shadow:none;
+}
+.aura-shell .aura-video-stage .aura-emotion-video {
+  object-fit:contain !important;
+  object-position:center center !important;
+  background:transparent;
+}
+.aura-shell .aura-stage-caption { display:none !important; }
+.aura-shell .aura-chat-panel-main {
+  flex:0 0 auto;
+  min-height:440px;
+  overflow:visible;
+}
+.aura-shell .aura-chat-panel-main > .flex.flex-col.h-full { min-height:440px; height:auto; }
+.aura-shell .aura-chat-panel-main .flex-1.overflow-y-auto { min-height:220px; max-height:55dvh; overflow-y:auto; }
+@media (max-width:760px) {
+ .aura-shell .aura-main-single { padding:8px 9px max(14px,env(safe-area-inset-bottom)); gap:10px; }
+ .aura-shell .aura-video-stage { height:clamp(440px, 62dvh, 690px); min-height:440px; border-radius:20px; }
+ .aura-shell .aura-chat-panel-main { min-height:430px; }
+ .aura-shell .aura-chat-panel-main > .flex.flex-col.h-full { min-height:430px; }
+ .aura-shell .aura-chat-panel-main .flex-1.overflow-y-auto { min-height:220px; max-height:52dvh; }
+}
+@media (min-width:761px) {
+ .aura-shell .aura-main-single { max-width:1100px; margin-inline:auto; }
+ .aura-shell .aura-video-stage { height:clamp(500px, 68dvh, 780px); }
+}
