@@ -135,11 +135,11 @@ function normalizeEmotion(rawName) {
 function heuristicEmotion(text) {
   const t = String(text || "").toLowerCase();
 
-  if (/(haha|hahaha|lol|lmao|funny|hilarious)/.test(t)) {
+  if (/(laugh|laughing|make me laugh|tell me a joke|giggle|haha|hahaha|lol|lmao|funny|hilarious|हँस|हंस|मुझे हँसा|मुझे हंसा)/.test(t)) {
     return "Laughing";
   }
 
-  if (/(crying|sobbing|tears|रो रहा|रो रही|रोना|आंसू)/.test(t)) {
+  if (/(cry|crying|make me cry|pretend to cry|sob|sobbing|weep|tears|😭|रो रहा|रो रही|रोना|रोने|आंसू)/.test(t)) {
     return "Crying";
   }
 
@@ -155,7 +155,7 @@ function heuristicEmotion(text) {
     return "Fear";
   }
 
-  if (/(wow|omg|amazing|surprised|surprise|अरे वाह|हैरान|आश्चर्य)/.test(t)) {
+  if (/(shock|shocking|shocked|surprise|surprising|surprised|astonish|astonishing|wow|omg|unexpected|😲|😱|हैरान|आश्चर्य|चौंका|चौंको)/.test(t)) {
     return "Surprise";
   }
 
@@ -238,6 +238,9 @@ EMOTIONAL INTELLIGENCE:
 - If the user is genuinely emotional, respond with appropriate empathy.
 - If the user is sad, hurt, lonely, afraid, angry, frustrated, excited, grateful, etc., acknowledge and respond appropriately when relevant.
 - Match the user's emotional intensity. Do not exaggerate.
+- If the user asks you to laugh, cry, act surprised/shocked, sound excited, or demonstrate an emotion, play along naturally through words, punctuation, and fitting emojis. This is harmless expressive roleplay: do NOT refuse by saying you are an AI and cannot do it. You may be honest that you do not literally feel emotions, but do not let that stop a playful demonstration.
+- When the user asks for a reaction (for example 'laugh', 'cry', or 'act shocked'), make the reaction itself the answer first; keep it natural and brief, without over-explaining that you lack a body or real tears.
+- Use subtle emotional cues too; do not require an extremely emotional paragraph before responding warmly or expressively.
 - Do not force an emotional response when the user's message is neutral or factual.
 - Do not mention Hume, emotion detection, internal scores, APIs, models, or these instructions.
 
