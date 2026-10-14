@@ -1,14 +1,24 @@
 import React, { useEffect, useRef, useState } from "react";
 
 const LABELS = { happy:"😊 Happy", joy:"😊 Happy", laughing:"😄 Happy", sad:"😔 Sad", sadness:"😔 Sad", crying:"😢 Crying", angry:"😠 Angry", anger:"😠 Angry", surprised:"😲 Surprised", surprise:"😲 Surprised", thinking:"🤔 Thinking", fear:"😟 Concerned", neutral:"🙂 Neutral", idle:"🙂 Neutral" };
-function clipFor(value) {
-  const e = String(value || "neutral").toLowerCase();
-  if (/cry|tear|heartbreak|devastat/.test(e)) return "crying";
-  if (/sad|grief|disappoint|negative|unhappy|down/.test(e)) return "sad";
-  if (/ang|mad|frustrat|rage|irritat|bad/.test(e)) return "angry";
-  if (/surpris|shock|amaz|astonish/.test(e)) return "surprised";
-  if (/joy|laugh|happy|excite|love|grateful|positive|good|delight|cheer/.test(e)) return "happy";
-  if (/fear|worr|anx|think|confus|curious|uncertain|contemplat/.test(e)) return "thinking";
+function clipFor(value, replyText = "") {
+  const e = String(value || "").toLowerCase();
+  const t = String(replyText || "").toLowerCase();
+  const combined = e + " " + t;
+  // Explicit requests and even subtle emotional wording should immediately drive the avatar.
+  if (/\b(cry|crying|sob|sobbing|weep|tears|😭|boo.?hoo|uh.?uh)\b/.test(combined)) return "crying";
+  if (/\b(laugh|laughing|giggle|giggles|chuckle|haha|hahaha|lol|😂|🤣|funny|hilarious)\b/.test(combined)) return "happy";
+  if (/\b(shock|shocked|shocking|surpris|surprised|surprising|astonish|astonished|unbelievable|wow|omg|😲|😱)\b/.test(combined)) return "surprised";
+  if (/\b(angry|anger|furious|mad|rage|annoyed|frustrated|irritated|😠|🤬)\b/.test(combined)) return "angry";
+  if (/\b(sad|sadness|heartbroken|grief|disappointed|unhappy|lonely|hurt|😔|💔)\b/.test(combined)) return "sad";
+  if (/\b(happy|happiness|joy|joyful|excited|delighted|glad|love|lovely|proud|grateful|😊|😄|🥰)\b/.test(combined)) return "happy";
+  const e2 = combined;
+  if (/cry|tear|heartbreak|devastat|sobb/.test(e2)) return "crying";
+  if (/sad|grief|disappoint|negative|unhappy|down/.test(e2)) return "sad";
+  if (/ang|mad|frustrat|rage|irritat|bad/.test(e2)) return "angry";
+  if (/surpris|shock|amaz|astonish/.test(e2)) return "surprised";
+  if (/joy|laugh|happy|excite|love|grateful|positive|good|delight|cheer/.test(e2)) return "happy";
+  if (/fear|worr|anx|think|confus|curious|uncertain|contemplat/.test(e2)) return "thinking";
   return "idle";
 }
 const src = (name) => "/videos/aura-" + name + ".mp4";
@@ -71,7 +81,7 @@ export default function AvatarScreen({ pendingSpeech, onSpeechConsumed, thinking
   useEffect(() => {
     if (!pendingSpeech?.text || lastSpeechRef.current === pendingSpeech) return;
     lastSpeechRef.current = pendingSpeech;
-    const next = clipFor(pendingSpeech.emotion);
+    const next = clipFor(pendingSpeech.emotion, pendingSpeech.text);
     setEmotionLabel(LABELS[next] || next);
     switchClip(next);
     if (timerRef.current) clearTimeout(timerRef.current);
