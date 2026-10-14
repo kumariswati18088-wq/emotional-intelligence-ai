@@ -50,7 +50,6 @@ export default function AvatarScreen({ pendingSpeech, onSpeechConsumed, thinking
       busyRef.current = false;
     };
     el.addEventListener("canplay", reveal, { once: true });
-    setSources((old) => old.map((s, i) => i === inactive ? src(next) : s));
     el.src = src(next);
     el.load();
     if (el.readyState >= 3) reveal();
@@ -66,7 +65,9 @@ export default function AvatarScreen({ pendingSpeech, onSpeechConsumed, thinking
       const el = ref.current;
       if (!el) return;
       el.muted = true;
-      if (i === active) el.play().catch(() => {});
+      // Keep both video layers mounted and preloaded so the next emotion is ready off-screen.
+      if (!el.getAttribute("src")) { el.src = src(i === 0 ? "idle" : "happy"); el.load(); }
+      if (i === active) { el.play().catch(() => {}); }
     });
   }, []);
 
