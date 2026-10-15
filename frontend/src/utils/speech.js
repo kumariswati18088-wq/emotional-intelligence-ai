@@ -4,6 +4,13 @@ const LANGUAGE_CODES = {
   ur: "ur-IN", kn: "kn-IN", ml: "ml-IN", or: "or-IN",
 };
 
+function cleanSpeechText(text) {
+  return String(text || "")
+    .replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\uFE0F\u200D]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function detectLanguage(text, fallbackLanguage = "en") {
   const value = String(text || "");
   if (/[ऀ-ॿ]/.test(value)) return "hi";
@@ -15,7 +22,6 @@ function detectLanguage(text, fallbackLanguage = "en") {
   if (/[ಀ-೿]/.test(value)) return "kn";
   if (/[ഀ-ൿ]/.test(value)) return "ml";
   if (/[଀-୿]/.test(value)) return "or";
-  // Latin-script Hindi/Hinglish cannot be identified reliably from script alone.
   return String(fallbackLanguage || "en").split("-")[0].toLowerCase();
 }
 
@@ -38,19 +44,15 @@ function voiceScore(voice, language, preference) {
   return score;
 }
 
-/**
- * Uses only voices already available in the user's browser/device.
- * No paid API, API key, or per-character charge is used.
- * Actual voice quality and language availability depend on the device.
- */
 export function speakAuraText(text, { language = "en", voice = "GIGI" } = {}) {
-  if (typeof window === "undefined" || !("speechSynthesis" in window) || !text) return false;
+  const cleanText = cleanSpeechText(text);
+  if (typeof window === "undefined" || !("speechSynthesis" in window) || !cleanText) return false;
 
   try {
     const synthesis = window.speechSynthesis;
     synthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(String(text));
-    const detected = detectLanguage(text, language);
+    const detected = detectLanguage(cleanText, language);
+    const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.lang = LANGUAGE_CODES[detected] || (language || "en-US");
     utterance.rate = detected === "hi" ? 0.94 : 0.96;
     utterance.pitch = voice === "ADAM" ? 0.98 : 1.12;
@@ -67,7 +69,6 @@ export function speakAuraText(text, { language = "en", voice = "GIGI" } = {}) {
       return true;
     };
 
-    // Some browsers load their voice list asynchronously.
     if (!chooseVoice()) {
       let spoken = false;
       const onVoicesChanged = () => {
@@ -78,7 +79,6 @@ export function speakAuraText(text, { language = "en", voice = "GIGI" } = {}) {
         synthesis.speak(utterance);
       };
       synthesis.addEventListener?.("voiceschanged", onVoicesChanged, { once: true });
-      // If voiceschanged never fires, still speak with the device default.
       window.setTimeout(() => {
         synthesis.removeEventListener?.("voiceschanged", onVoicesChanged);
         if (spoken) return;
