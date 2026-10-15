@@ -12,7 +12,6 @@ export default function LiveCallModal({ onClose, token, language, voice, avatar,
   const [facingMode, setFacingMode] = useState("user");
   const [error, setError] = useState("");
   const [input, setInput] = useState("");
-  const [reply, setReply] = useState("Hi, I'm here with you. How are you feeling?");
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false);
   const [audioSrc, setAudioSrc] = useState("");
@@ -37,7 +36,6 @@ export default function LiveCallModal({ onClose, token, language, voice, avatar,
       stopStream();
       if (!navigator.mediaDevices?.getUserMedia) throw new Error("Camera/microphone require browser permission and a secure connection.");
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: mode }, audio: true });
-      // Preserve the user's mic/camera choices when switching the camera.
       stream.getAudioTracks().forEach((track) => { track.enabled = micOn; });
       stream.getVideoTracks().forEach((track) => { track.enabled = camOn; });
       streamRef.current = stream;
@@ -94,22 +92,20 @@ export default function LiveCallModal({ onClose, token, language, voice, avatar,
     if (!message || busy) return;
     setMessages((items) => [...items, { id: String(Date.now()) + "-user", role: "user", text: message }]);
     setBusy(true);
-    setReply("Aura is thinking…");
     setAudioSrc("");
     window.speechSynthesis?.cancel?.();
     setInput("");
     try {
       const result = await api.sendChat(token, { message, language, voice, history: [...messages, { role: "user", text: message }].slice(-50).map((item) => ({ role: item.role, text: item.text })) });
       const text = result?.reply || "I couldn't generate a response. Please try again.";
-      setReply(text);
-      setPendingSpeech({ text, emotion: result?.emotion || "Neutral" });
+      const emotion = result?.emotion || "Neutral";
+      setPendingSpeech({ id: Date.now(), text: message + "\n" + text, emotion });
       setMessages((items) => [...items, { id: String(Date.now()) + "-assistant", role: "assistant", text }]);
       setAudioSrc(result?.audio || "");
-      if (!result?.audio) {
-        speakAuraText(text, { language, voice });
-      }
+      if (!result?.audio) speakAuraText(text, { language, voice });
     } catch (err) {
-      setReply("Sorry, I couldn't get a response: " + (err?.message || "Please try again."));
+      const errorText = "Sorry, I couldn't get a response: " + (err?.message || "Please try again.");
+      setMessages((items) => [...items, { id: String(Date.now()) + "-error", role: "assistant", text: errorText }]);
     } finally { setBusy(false); }
   }
   function handleClose() {
@@ -128,7 +124,7 @@ export default function LiveCallModal({ onClose, token, language, voice, avatar,
         </header>
         <div className="aura-call-content relative min-h-0 flex-1 overflow-hidden p-2 sm:p-4">
           <div className="aura-call-layout mx-auto flex h-full w-full max-w-3xl min-h-0 flex-col gap-3">
-            <div className="aura-call-video"><AvatarScreen pendingSpeech={pendingSpeech} onSpeechConsumed={() => setPendingSpeech(null)} /></div>
+            <div className="aura-call-video"><AvatarScreen pendingSpeech={pendingSpeech} thinking={busy} onSpeechConsumed={() => setPendingSpeech(null)} /></div>
             <section className="aura-call-chat mt-0 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
               <button type="button" onClick={() => setVoiceMenuOpen((open) => !open)} aria-expanded={voiceMenuOpen} className="flex items-center justify-between border-b border-white/10 px-4 py-3 text-left hover:bg-white/5">
                 <span className="font-semibold">💬 Chat with Aura</span><span className="text-xs text-teal-200">{voiceMenuOpen ? "Close voices ▲" : "Change voice ▾"}</span>
