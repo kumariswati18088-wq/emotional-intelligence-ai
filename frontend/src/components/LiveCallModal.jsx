@@ -101,8 +101,9 @@ export default function LiveCallModal({ onClose, token, language, voice, avatar,
       const emotion = result?.emotion || "Neutral";
       setPendingSpeech({ id: Date.now(), text: message + "\n" + text, emotion });
       setMessages((items) => [...items, { id: String(Date.now()) + "-assistant", role: "assistant", text }]);
-      setAudioSrc(result?.audio || "");
-      if (!result?.audio) speakAuraText(text, { language, voice });
+      setAudioSrc("");
+      // Use sanitized browser speech so emoji characters are never voiced from server-generated audio.
+      speakAuraText(text, { language, voice });
     } catch (err) {
       const errorText = "Sorry, I couldn't get a response: " + (err?.message || "Please try again.");
       setMessages((items) => [...items, { id: String(Date.now()) + "-error", role: "assistant", text: errorText }]);
