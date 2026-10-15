@@ -5,37 +5,29 @@ function clipFor(value, replyText = "") {
   const e = String(value || "").toLowerCase();
   const t = String(replyText || "").toLowerCase();
   const combined = e + " " + t;
-  // Explicit requests and even subtle emotional wording should immediately drive the avatar.
-  if (/(\b(cry|crying|sob|sobbing|weep|tears|😭|boo.?hoo|uh.?uh)\b|रो|रोना|रो रही|रो रहा|आंसू|आँसू|दुखी|उदास)/i.test(combined)) return "crying";
+  if (/(\b(cry|crying|sob|sobbing|weep|tears|😭|boo.?hoo)\b|रो|रोना|रो रही|रो रहा|आंसू|आँसू|दुखी|उदास)/i.test(combined)) return "crying";
   if (/(\b(laugh|laughing|giggle|giggles|chuckle|haha|hahaha|lol|😂|🤣|funny|hilarious)\b|हंस|हँस|मजाक|खुश|हँसी|हंसी)/i.test(combined)) return "happy";
   if (/(\b(shock|shocked|shocking|surpris|surprised|surprising|astonish|astonished|unbelievable|wow|omg|😲|😱)\b|हैरान|चौंक|आश्चर्य|अविश्वास)/i.test(combined)) return "surprised";
   if (/(\b(angry|anger|furious|mad|rage|annoyed|frustrated|irritated|😠|🤬)\b|गुस्सा|नाराज|नाराज़|क्रोधित)/i.test(combined)) return "angry";
   if (/(\b(sad|sadness|heartbroken|grief|disappointed|unhappy|lonely|hurt|😔|💔)\b|दुखी|उदास|अकेला|अकेली|दर्द)/i.test(combined)) return "sad";
   if (/\b(happy|happiness|joy|joyful|excited|delighted|glad|love|lovely|proud|grateful|😊|😄|🥰)\b/.test(combined)) return "happy";
-  const e2 = combined;
-  if (/cry|tear|heartbreak|devastat|sobb/.test(e2)) return "crying";
-  if (/sad|grief|disappoint|negative|unhappy|down/.test(e2)) return "sad";
-  if (/ang|mad|frustrat|rage|irritat|bad/.test(e2)) return "angry";
-  if (/surpris|shock|amaz|astonish/.test(e2)) return "surprised";
-  if (/joy|laugh|happy|excite|love|grateful|positive|good|delight|cheer/.test(e2)) return "happy";
-  if (/fear|worr|anx|think|confus|curious|uncertain|contemplat/.test(e2)) return "thinking";
-  return "idle";
+  if (/\b(fear|worried|worry|anxious|afraid|scared|concerned|😟)\b|चिंता|डर|घबर/i.test(combined)) return "fear";
+  // No clear emotion in the text? Keep the current expression instead of resetting to neutral.
+  return null;
 }
 const src = (name) => "/videos/aura-" + name + ".mp4";
 const githubSrc = (name) => "https://raw.githubusercontent.com/kumariswati18088-wq/emotional-intelligence-ai/main/frontend/public/videos/aura-" + name + ".mp4";
+
 export default function AvatarScreen({ pendingSpeech, onSpeechConsumed, thinking = false }) {
   const videos = [useRef(null), useRef(null)];
   const [active, setActive] = useState(0);
   const [clip, setClip] = useState("idle");
   const [emotionLabel, setEmotionLabel] = useState("Neutral");
-
   const busyRef = useRef(false);
   const targetRef = useRef("idle");
   const lastSpeechRef = useRef(null);
-  const timerRef = useRef(null);
+  const thinkingRef = useRef(false);
 
-  // Two permanently mounted video layers: prepare the next MP4 before revealing it.
-  // This prevents a black/blank frame when changing emotion clips.
   const switchClip = (next) => {
     if (!next || next === targetRef.current) return;
     targetRef.current = next;
@@ -57,9 +49,7 @@ export default function AvatarScreen({ pendingSpeech, onSpeechConsumed, thinking
     el.load();
     if (el.readyState >= 3) reveal();
     window.setTimeout(() => {
-      if (busyRef.current && targetRef.current === next) {
-        if (el.readyState >= 2) reveal();
-      }
+      if (busyRef.current && targetRef.current === next && el.readyState >= 2) reveal();
     }, 900);
   };
 
@@ -68,34 +58,40 @@ export default function AvatarScreen({ pendingSpeech, onSpeechConsumed, thinking
       const el = ref.current;
       if (!el) return;
       el.muted = true;
-      // Keep both video layers mounted and preloaded so the next emotion is ready off-screen.
-      if (!el.getAttribute("src")) { const initialClip = i === 0 ? "idle" : "happy"; el.dataset.clip = initialClip; el.dataset.githubFallback = "0"; el.src = src(initialClip); el.load(); }
-      if (i === active) { el.play().catch(() => {}); }
+      if (!el.getAttribute("src")) {
+        const initialClip = i === 0 ? "idle" : "happy";
+        el.dataset.clip = initialClip;
+        el.dataset.githubFallback = "0";
+        el.src = src(initialClip);
+        el.load();
+      }
+      if (i === active) el.play().catch(() => {});
     });
   }, []);
 
+  // Thinking remains a temporary, separate mode. It returns to the last expression afterward.
   useEffect(() => {
+    thinkingRef.current = thinking;
     if (thinking) {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      setEmotionLabel("Thinking");
       switchClip("thinking");
+      setEmotionLabel("Thinking");
+    } else if (targetRef.current === "thinking") {
+      const previous = lastSpeechRef.current?.clip || "idle";
+      switchClip(previous);
+      setEmotionLabel(LABELS[previous] || "Neutral");
     }
   }, [thinking]);
 
   useEffect(() => {
-    if (!pendingSpeech?.text || lastSpeechRef.current === pendingSpeech) return;
-    lastSpeechRef.current = pendingSpeech;
-    const next = clipFor(pendingSpeech.emotion, pendingSpeech.text);
-    setEmotionLabel(LABELS[next] || next);
-    switchClip(next);
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = window.setTimeout(() => {
-      if (!thinking) { switchClip("idle"); setEmotionLabel("Neutral"); }
-    }, Math.max(4500, Math.min(12000, String(pendingSpeech.text).length * 65)));
+    if (!pendingSpeech?.text || lastSpeechRef.current?.id === pendingSpeech.id) return;
+    const detected = clipFor(pendingSpeech.emotion, pendingSpeech.text);
+    const next = detected || lastSpeechRef.current?.clip || (targetRef.current === "thinking" ? "idle" : targetRef.current);
+    lastSpeechRef.current = { id: pendingSpeech.id || pendingSpeech, clip: next };
+    setEmotionLabel(LABELS[next] || "Neutral");
+    if (!thinkingRef.current) switchClip(next);
     onSpeechConsumed?.();
   }, [pendingSpeech, onSpeechConsumed]);
 
-  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
   return (
     <div className="relative aura-video-frame mx-auto w-full overflow-hidden rounded-3xl border border-white/10 bg-midnight-900 shadow-glow">
       {videos.map((ref, i) => <video key={i} ref={ref} autoPlay loop muted playsInline preload="auto" aria-hidden="true" className="aura-emotion-video absolute inset-0 h-full w-full object-cover" style={{ opacity: active === i ? 1 : 0, transition: "opacity 180ms ease-in-out", zIndex: active === i ? 2 : 1 }} onError={(event) => { const el = event.currentTarget; const name = el.dataset.clip || clip || "idle"; if (el.dataset.githubFallback !== "1") { el.dataset.githubFallback = "1"; el.src = githubSrc(name); el.load(); el.play().catch(() => {}); } }} />)}
