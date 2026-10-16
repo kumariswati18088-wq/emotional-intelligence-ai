@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import AvatarScreen from "./components/AvatarScreen";
 import ChatBox from "./components/ChatBox";
 import ProfileMenu from "./components/ProfileMenu";
+import Login from "./components/Login";
 import AdminPanel from "./components/AdminPanel";
 import LiveCallModal from "./components/LiveCallModal";
 import { api } from "./utils/api";
@@ -41,48 +42,10 @@ export default function App() {
     let cancelled = false;
 
     async function initializeSession() {
-      // No token -> automatically create guest session
+      // No token -> show the login/register page.
       if (!token) {
-        setBooting(true);
-
-        try {
-          const response = await api.guest();
-
-          if (cancelled) return;
-
-          const guestToken = response.token;
-          const guestUser = response.user;
-
-          if (!guestToken || !guestUser) {
-            throw new Error("Guest session response is invalid");
-          }
-
-          localStorage.setItem("ei_token", guestToken);
-
-          setToken(guestToken);
-          setUser(guestUser);
-
-          setSettings({
-            avatar: guestUser.avatar || "GIRL1",
-            voice: guestUser.voice || "GIGI",
-            language: guestUser.language || "en",
-            ...readSavedSettings(),
-          });
-        } catch (err) {
-          console.error("Guest session failed:", err);
-
-          if (!cancelled) {
-            setUser(null);
-            setBooting(false);
-          }
-
-          return;
-        }
-
-        if (!cancelled) {
-          setBooting(false);
-        }
-
+        setUser(null);
+        setBooting(false);
         return;
       }
 
@@ -98,6 +61,14 @@ export default function App() {
 
         if (!currentUser) {
           throw new Error("User data is missing");
+        }
+
+        // A saved guest token should not bypass the login page.
+        if (currentUser.isGuest) {
+          localStorage.removeItem("ei_token");
+          setToken(null);
+          setUser(null);
+          return;
         }
 
         setUser(currentUser);
@@ -158,11 +129,16 @@ export default function App() {
     setAdminToken(null);
   }
 
-  function retryGuestSession() {
-    localStorage.removeItem("ei_token");
-    setToken(null);
-    setUser(null);
-    setBooting(false);
+  function handleAuthenticated(authToken, authenticatedUser) {
+    localStorage.setItem("ei_token", authToken);
+    setToken(authToken);
+    setUser(authenticatedUser);
+    setSettings({
+      avatar: authenticatedUser.avatar || "GIRL1",
+      voice: authenticatedUser.voice || "GIGI",
+      language: authenticatedUser.language || "en",
+      ...readSavedSettings(),
+    });
   }
 
   // Initial/session loading
@@ -174,29 +150,8 @@ export default function App() {
     );
   }
 
-  // Guest session failed
-  // Login page intentionally disabled.
   if (!user || !token) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <div className="max-w-md w-full rounded-3xl border border-white/10 bg-midnight-900/60 p-6 text-center">
-          <h2 className="text-xl font-semibold mb-3">
-            Unable to start Aura
-          </h2>
-
-          <p className="text-white/60 text-sm mb-6">
-            The guest session could not be created. Please try again.
-          </p>
-
-          <button
-            onClick={retryGuestSession}
-            className="px-5 py-2.5 rounded-full bg-teal-400/20 border border-teal-300/30 text-teal-200 hover:bg-teal-400/30"
-          >
-            Try again
-          </button>
-        </div>
-      </div>
-    );
+    return <Login onAuthenticated={handleAuthenticated} />;
   }
 
   return (
