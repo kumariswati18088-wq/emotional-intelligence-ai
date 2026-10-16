@@ -262,7 +262,7 @@ export default function ChatBox({
       );
 
       try {
-        onAiSpeech?.({ text: reply, emotion, audio });
+        onAiSpeech?.({ text: reply, emotion });
       } catch (speechError) {
         console.error("Aura speech playback failed:", speechError);
       }
