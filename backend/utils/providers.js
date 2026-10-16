@@ -359,58 +359,144 @@ ${latestMessage}`
     ],
   };
 
-  // Try the configured model first, then a stable fallback if Gemini is overloaded
-  // or the primary model is unavailable. A fallback can also help if one model's
-  // free-tier quota is exhausted.
+  // Try Gemini first. If its quota is exhausted or the provider fails,
+  // automatically use Groq when GROQ_API_KEY is configured.
   const models = ["gemini-3.8-flash", "gemini-2.5-flash"];
-  let lastError;
+  let lastError = null;
 
-  for (const model of models) {
+  if (process.env.GEMINI_API_KEY) {
+    for (const model of models) {
+      try {
+        const response = await axios.post(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+          requestBody,
+          {
+            headers: {
+              "x-goog-api-key": process.env.GEMINI_API_KEY,
+              "Content-Type": "application/json",
+            },
+            timeout: 18000,
+          }
+        );
+
+        const candidates = response.data?.candidates || [];
+        const parts = candidates[0]?.content?.parts || [];
+        const replyText = parts
+          .map((part) => part?.text || "")
+          .join("")
+          .trim();
+
+        if (!replyText) {
+          throw new Error(`Gemini model ${model} returned no text`);
+        }
+
+        console.log("AI reply generated with Gemini model:", model);
+        return replyText;
+      } catch (err) {
+        lastError = err;
+        const status = err?.response?.status;
+        const retryable = [400, 401, 403, 404, 408, 429, 500, 502, 503, 504].includes(status) ||
+          (!status && (
+            err?.code === "ECONNABORTED" ||
+            err?.code === "ETIMEDOUT" ||
+            /timeout|network/i.test(err?.message || "")
+          ));
+
+        console.warn("Gemini model failed:", model, "status:", status || "network", err?.message || "");
+        if (model !== models[models.length - 1] && retryable) continue;
+        break;
+      }
+    }
+  } else {
+    lastError = new Error("GEMINI_API_KEY is not configured");
+    console.warn("GEMINI_API_KEY is missing; checking Groq fallback.");
+  }
+
+  if (process.env.GROQ_API_KEY) {
     try {
+      const groqMessages = [{ role: "system", content: systemInstruction }];
+
+      if (Array.isArray(history) && history.length) {
+        const historyItems = history.slice(-50);
+        const lastItem = historyItems[historyItems.length - 1];
+        if (
+          lastItem?.role === "user" &&
+          String(lastItem?.text || "").trim() === latestMessage
+        ) {
+          historyItems.pop();
+        }
+
+        for (const item of historyItems) {
+          const text = String(item?.text || "").trim();
+          if (!text) continue;
+          groqMessages.push({
+            role: item?.role === "assistant" ? "assistant" : "user",
+            content: text,
+          });
+        }
+      }
+
+      const groqUserContent = [];
+      for (const part of contentParts) {
+        if (typeof part.text === "string" && part.text) {
+          groqUserContent.push({ type: "text", text: part.text });
+        } else if (part.inline_data?.mime_type?.startsWith("image/")) {
+          // Groq's OpenAI-compatible vision format accepts base64 data URLs
+          // on vision-capable models. Other attachment types are described in text.
+          groqUserContent.push({
+            type: "image_url",
+            image_url: {
+              url: `data:${part.inline_data.mime_type};base64,${part.inline_data.data}`,
+            },
+          });
+        }
+      }
+
+      if (!groqUserContent.length) {
+        groqUserContent.push({ type: "text", text: latestMessage });
+      }
+
+      groqMessages.push({ role: "user", content: groqUserContent.length === 1 && groqUserContent[0].type === "text"
+        ? groqUserContent[0].text
+        : groqUserContent });
+
+      const groqModel = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
       const response = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-        requestBody,
+        "https://api.groq.com/openai/v1/chat/completions",
+        {
+          model: groqModel,
+          messages: groqMessages,
+          temperature: 0.7,
+          max_tokens: 1200,
+        },
         {
           headers: {
-            "x-goog-api-key": process.env.GEMINI_API_KEY,
+            Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
             "Content-Type": "application/json",
           },
-          timeout: 18000,
+          timeout: 30000,
         }
       );
 
-      const candidates = response.data?.candidates || [];
-      const parts = candidates[0]?.content?.parts || [];
-      const replyText = parts
-        .map((part) => part?.text || "")
-        .join("")
-        .trim();
-
-      if (!replyText) {
-        throw new Error(`Gemini model ${model} returned no text`);
-      }
-
-      console.log("Gemini reply generated with model:", model);
+      const replyText = String(response.data?.choices?.[0]?.message?.content || "").trim();
+      if (!replyText) throw new Error("Groq returned no text");
+      console.log("AI reply generated with Groq fallback model:", groqModel);
       return replyText;
-    } catch (err) {
-      lastError = err;
-      const status = err?.response?.status;
-      const retryable = [400, 404, 429, 500, 502, 503, 504].includes(status) ||
-        (!status && (
-          err?.code === "ECONNABORTED" ||
-          err?.code === "ETIMEDOUT" ||
-          /timeout/i.test(err?.message || "")
-        ));
-
-      console.error("Gemini model failed:", model, "status:", status || "network", err?.message || "");
-      if (model !== models[models.length - 1] && retryable) {
-        continue;
+    } catch (groqError) {
+      console.error(
+        "Groq fallback failed:",
+        groqError?.response?.status || "network",
+        groqError?.response?.data || groqError?.message || groqError
+      );
+      if (lastError) {
+        groqError.geminiError = lastError?.response?.data || lastError?.message;
       }
-      throw err;
+      throw groqError;
     }
   }
 
-  throw lastError || new Error("Gemini request failed");
+  if (lastError) throw lastError;
+  throw new Error("No AI provider is configured. Set GEMINI_API_KEY and/or GROQ_API_KEY.");
 }
 
 // ============================================================
