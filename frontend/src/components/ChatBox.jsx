@@ -246,7 +246,7 @@ export default function ChatBox({
           ? result.reply.text
           : "I received your message, but I couldn’t prepare a text reply. Please try again.";
       const emotion = typeof result?.emotion === "string" ? result.emotion : "Neutral";
-      const audio = typeof result?.audio === "string" ? result.audio : "";
+
 
       const assistantMessage = {
         role: "assistant",
@@ -266,7 +266,7 @@ export default function ChatBox({
       } catch (speechError) {
         console.error("Aura speech playback failed:", speechError);
       }
-      if (audio) setAudioReply(audio);
+      // Do not play server-generated audio: it may speak emoji names. App uses cleaned local TTS.
     } catch (err) {
       setMessages((prev) =>
         [
@@ -382,7 +382,7 @@ export default function ChatBox({
         <p role="status" className="px-4 pb-2 text-xs text-coral-300">{voiceError}</p>
       )}
 
-      {audioReply && <audio key={audioReply} src={audioReply} autoPlay controls className="mx-3 mb-2 max-w-[calc(100%-1.5rem)]" aria-label="Aura voice reply" onEnded={() => setAudioReply("")} />}
+
       <form
         onSubmit={handleSend}
         ref={composerRef} className="chat-composer sticky bottom-0 z-20 border-t border-white/10 bg-midnight-950/95 backdrop-blur-xl p-3 pb-[max(12px,env(safe-area-inset-bottom))] flex items-end gap-2"
