@@ -143,7 +143,8 @@ export default function App() {
   function handleAiSpeech(payload) {
     setPendingSpeech(payload);
 
-    if (payload?.audio || !payload?.text) return;
+    if (!payload?.text) return;
+    // Always synthesize cleaned text locally; server audio may pronounce emoji names/sounds.
     speakAuraText(payload.text, {
       language: settings.language,
       voice: settings.voice,
