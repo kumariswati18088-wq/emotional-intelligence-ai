@@ -11,7 +11,7 @@ async function request(path, { method = "GET", body, token } = {}) {
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 60000);
+  const timeoutId = setTimeout(() => controller.abort(), 12000);
   let res;
 
   try {
@@ -68,10 +68,13 @@ export const api = {
   login: (username, password) =>
     request("/auth/login", {
       method: "POST",
-      body: {
-        username,
-        password,
-      },
+      body: { username, password },
+    }),
+
+  googleLogin: (credential) =>
+    request("/auth/google", {
+      method: "POST",
+      body: { credential },
     }),
 
   me: (token) =>
