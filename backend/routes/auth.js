@@ -131,10 +131,32 @@ router.post("/login", async (req, res) => {
   });
 });
 
+// POST /api/auth/google - verify Google Identity Services credential server-side.
+router.post("/google", async (req, res) => {
+  try {
+    const { credential } = req.body || {};
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    if (!clientId) return res.status(503).json({ error: "Google login is not configured yet. Add GOOGLE_CLIENT_ID to backend and VITE_GOOGLE_CLIENT_ID to frontend." });
+    if (!credential) return res.status(400).json({ error: "Google credential is missing." });
+    const response = await fetch("https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(credential));
+    if (!response.ok) return res.status(401).json({ error: "Google sign-in could not be verified. Please try again." });
+    const profile = await response.json();
+    if (profile.aud !== clientId || profile.email_verified !== "true" || !profile.sub) return res.status(401).json({ error: "Google account verification failed." });
+    const user = { id: "google_" + profile.sub, username: profile.email, email: profile.email, name: profile.name || profile.email, avatar: "GIRL1", voice: "GIGI", language: "en", isGoogle: true };
+    const token = jwt.sign({ id: user.id, username: user.username, isAdmin: false, isGuest: false, isGoogle: true, email: user.email, name: user.name, avatar: user.avatar, voice: user.voice, language: user.language }, process.env.JWT_SECRET, { expiresIn: "7d" });
+    return res.json({ token, user });
+  } catch (error) {
+    console.error("Google login failed:", error);
+    return res.status(502).json({ error: "Google sign-in is temporarily unavailable. Please try again." });
+  }
+});
 // GET /api/auth/me
 router.get("/me", requireAuth, (req, res) => {
   // Guest users do not exist in db.json.
   // Recover guest session directly from the JWT.
+  if (req.user.isGoogle && req.user.id.startsWith("google_")) {
+    return res.json({ user: { id: req.user.id, username: req.user.username, email: req.user.email, name: req.user.name, avatar: req.user.avatar || "GIRL1", voice: req.user.voice || "GIGI", language: req.user.language || "en", isGoogle: true } });
+  }
   if (req.user.isGuest && req.user.id === "guest") {
     return res.json({
       user: {
