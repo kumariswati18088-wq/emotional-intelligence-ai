@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { api } from "../utils/api";
 
 export default function Login({ onAuthenticated }) {
-  const [mode, setMode] = useState("login"); // "login" | "register"
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -13,10 +12,7 @@ export default function Login({ onAuthenticated }) {
     setError("");
     setLoading(true);
     try {
-      const result =
-        mode === "login"
-          ? await api.login(username, password)
-          : await api.register(username, password);
+      const result = await api.login(username.trim(), password);
       onAuthenticated(result.token, result.user);
     } catch (err) {
       setError(err.message);
@@ -41,27 +37,6 @@ export default function Login({ onAuthenticated }) {
         </div>
 
         <div className="bg-midnight-800/70 border border-white/10 rounded-2xl p-6 shadow-glow backdrop-blur">
-          <div className="flex mb-6 rounded-xl bg-midnight-900/60 p-1">
-            <button
-              className={`flex-1 py-2 text-sm rounded-lg transition ${
-                mode === "login" ? "bg-lavender-500/20 text-white" : "text-white/50"
-              }`}
-              onClick={() => setMode("login")}
-              type="button"
-            >
-              Log in
-            </button>
-            <button
-              className={`flex-1 py-2 text-sm rounded-lg transition ${
-                mode === "register" ? "bg-lavender-500/20 text-white" : "text-white/50"
-              }`}
-              onClick={() => setMode("register")}
-              type="button"
-            >
-              Create account
-            </button>
-          </div>
-
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="text-xs uppercase tracking-wide text-white/40">
@@ -86,7 +61,7 @@ export default function Login({ onAuthenticated }) {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
-                autoComplete={mode === "login" ? "current-password" : "new-password"}
+                autoComplete="current-password"
               />
             </div>
 
@@ -101,7 +76,7 @@ export default function Login({ onAuthenticated }) {
               disabled={loading}
               className="w-full py-2.5 rounded-lg bg-lavender-500 hover:bg-lavender-400 transition text-midnight-950 font-medium text-sm disabled:opacity-50"
             >
-              {loading ? "Please wait…" : mode === "login" ? "Log in" : "Create account"}
+              {loading ? "Logging in…" : "Log in"}
             </button>
           </form>
         </div>
