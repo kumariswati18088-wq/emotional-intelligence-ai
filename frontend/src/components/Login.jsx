@@ -27,7 +27,7 @@ export default function Login({ onAuthenticated }) {
         const config = await api.googleConfig();
         if (cancelled) return;
         clientId = config.clientId || "";
-        if (!clientId) { setError("Google login is not configured on the backend. Check GOOGLE_CLIENT_ID in Vercel."); return; }
+        if (!clientId || !clientId.endsWith(".apps.googleusercontent.com")) { setError("Google login setup error: backend GOOGLE_CLIENT_ID is missing or invalid. Check the exact Web application Client ID in Vercel."); return; }
         if (window.google?.accounts?.id) { renderGoogleButton(); return; }
         const script = document.createElement("script"); script.src = "https://accounts.google.com/gsi/client"; script.async = true; script.defer = true; script.onload = renderGoogleButton;
         script.onerror = () => { if (!cancelled) setError("Google sign-in could not load. Check your connection."); };
@@ -73,19 +73,20 @@ export default function Login({ onAuthenticated }) {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="text-xs uppercase tracking-wide text-white/40">
-                Username
+                Aura username or email
               </label>
               <input
                 className="mt-1 w-full rounded-lg bg-midnight-900/70 border border-white/10 px-3 py-2.5 text-sm focus:border-lavender-400 outline-none"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
+                autoCapitalize="none"
                 required
                 autoComplete="username"
               />
             </div>
             <div>
               <label className="text-xs uppercase tracking-wide text-white/40">
-                Password
+                Aura account password
               </label>
               <input
                 type="password"
@@ -109,7 +110,7 @@ export default function Login({ onAuthenticated }) {
               disabled={loading}
               className="w-full py-2.5 rounded-lg bg-lavender-500 hover:bg-lavender-400 transition text-midnight-950 font-medium text-sm disabled:opacity-50"
             >
-              {loading ? "Logging in…" : "Log in"}
+              {loading ? "Logging in…" : "Log in with Aura password"}
             </button>
           </form>
         </div>
