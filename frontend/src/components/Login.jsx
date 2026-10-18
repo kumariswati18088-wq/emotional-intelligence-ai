@@ -9,9 +9,8 @@ export default function Login({ onAuthenticated }) {
   const [googleLoading, setGoogleLoading] = useState(false);
 
   useEffect(() => {
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    if (!clientId) return;
     let cancelled = false;
+    let clientId = "";
     const renderGoogleButton = () => {
       if (cancelled || !window.google?.accounts?.id) return;
       window.google.accounts.id.initialize({ client_id: clientId, callback: async (response) => {
@@ -23,10 +22,18 @@ export default function Login({ onAuthenticated }) {
       const container = document.getElementById("aura-google-login");
       if (container) { container.innerHTML = ""; window.google.accounts.id.renderButton(container, { theme: "filled_black", size: "large", shape: "rect", text: "continue_with", width: Math.min(340, container.clientWidth || 340) }); }
     };
-    if (window.google?.accounts?.id) { renderGoogleButton(); return () => { cancelled = true; }; }
-    const script = document.createElement("script"); script.src = "https://accounts.google.com/gsi/client"; script.async = true; script.defer = true; script.onload = renderGoogleButton;
-    script.onerror = () => { if (!cancelled) setError("Google sign-in could not load. Check your connection."); };
-    document.head.appendChild(script);
+    (async () => {
+      try {
+        const config = await api.googleConfig();
+        if (cancelled) return;
+        clientId = config.clientId || "";
+        if (!clientId) { setError("Google login is not configured on the backend. Check GOOGLE_CLIENT_ID in Vercel."); return; }
+        if (window.google?.accounts?.id) { renderGoogleButton(); return; }
+        const script = document.createElement("script"); script.src = "https://accounts.google.com/gsi/client"; script.async = true; script.defer = true; script.onload = renderGoogleButton;
+        script.onerror = () => { if (!cancelled) setError("Google sign-in could not load. Check your connection."); };
+        document.head.appendChild(script);
+      } catch (err) { if (!cancelled) setError("Could not load Google sign-in configuration from Aura backend."); }
+    })();
     return () => { cancelled = true; };
   }, [onAuthenticated]);
   async function handleSubmit(e) {
@@ -61,7 +68,6 @@ export default function Login({ onAuthenticated }) {
         <div className="bg-midnight-800/70 border border-white/10 rounded-2xl p-6 shadow-glow backdrop-blur">
           <div className="mb-5">
             <div id="aura-google-login" className="flex justify-center min-h-10" />
-            {!import.meta.env.VITE_GOOGLE_CLIENT_ID && <p className="text-white/40 text-xs text-center mt-2">Google login needs VITE_GOOGLE_CLIENT_ID in Vercel.</p>}
             {googleLoading && <p className="text-white/60 text-sm text-center mt-2">Signing in with Google…</p>}
           </div>
           <form onSubmit={handleSubmit} className="space-y-4">
