@@ -131,6 +131,13 @@ router.post("/login", async (req, res) => {
   });
 });
 
+// GET /api/auth/google-config - frontend uses the exact same client ID as token verification.
+router.get("/google-config", (_req, res) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID || "";
+  res.set("Cache-Control", "no-store");
+  res.json({ configured: Boolean(clientId), clientId });
+});
+
 // POST /api/auth/google - verify Google Identity Services credential server-side.
 router.post("/google", async (req, res) => {
   try {
