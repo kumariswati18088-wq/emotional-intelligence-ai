@@ -71,6 +71,8 @@ export const api = {
       body: { username, password },
     }),
 
+  googleConfig: () => request("/auth/google-config"),
+
   googleLogin: (credential) =>
     request("/auth/google", {
       method: "POST",
