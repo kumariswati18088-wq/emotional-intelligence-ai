@@ -11,7 +11,7 @@ async function request(path, { method = "GET", body, token } = {}) {
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 12000);
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
   let res;
 
   try {
