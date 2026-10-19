@@ -42,10 +42,27 @@ export default function App() {
     let cancelled = false;
 
     async function initializeSession() {
-      // No token -> show the login/register page.
+      // No login screen for now: start Aura in a guest session.
       if (!token) {
-        setUser(null);
-        setBooting(false);
+        setBooting(true);
+        try {
+          const response = await api.guest();
+          if (cancelled) return;
+          localStorage.setItem("ei_token", response.token);
+          setToken(response.token);
+          setUser(response.user);
+          setSettings({
+            avatar: response.user.avatar || "GIRL1",
+            voice: response.user.voice || "GIGI",
+            language: response.user.language || "en",
+            ...readSavedSettings(),
+          });
+        } catch (err) {
+          console.error("Could not start Aura guest session:", err);
+          if (!cancelled) setUser({ id: "guest", username: "guest", isGuest: true, avatar: "GIRL1", voice: "GIGI", language: "en" });
+        } finally {
+          if (!cancelled) setBooting(false);
+        }
         return;
       }
 
@@ -63,14 +80,7 @@ export default function App() {
           throw new Error("User data is missing");
         }
 
-        // A saved guest token should not bypass the login page.
-        if (currentUser.isGuest) {
-          localStorage.removeItem("ei_token");
-          setToken(null);
-          setUser(null);
-          return;
-        }
-
+        // Guest sessions are valid while the login page is temporarily disabled.
         setUser(currentUser);
 
         setSettings({
@@ -150,8 +160,13 @@ export default function App() {
     );
   }
 
-  if (!user || !token) {
-    return <Login onAuthenticated={handleAuthenticated} />;
+  // Login is temporarily disabled; Aura opens directly in guest mode.
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="h-8 w-8 rounded-full border-2 border-lavender-400 border-t-transparent animate-spin" />
+      </div>
+    );
   }
 
   return (
