@@ -460,28 +460,49 @@ ${latestMessage}`
         ? groqUserContent[0].text
         : groqUserContent });
 
-      const groqModel = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
-      const response = await axios.post(
-        "https://api.groq.com/openai/v1/chat/completions",
-        {
-          model: groqModel,
-          messages: groqMessages,
-          temperature: 0.7,
-          max_tokens: 1200,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          timeout: 30000,
-        }
-      );
+      // Groq retired llama-3.3-70b-versatile for developer-tier usage.
+      // Try the configured model first, then current supported production alternatives.
+      const groqModels = [...new Set([
+        process.env.GROQ_MODEL,
+        "openai/gpt-oss-120b",
+        "qwen/qwen3.8-27b",
+      ].filter(Boolean))];
+      let groqError = null;
 
-      const replyText = String(response.data?.choices?.[0]?.message?.content || "").trim();
-      if (!replyText) throw new Error("Groq returned no text");
-      console.log("AI reply generated with Groq fallback model:", groqModel);
-      return replyText;
+      for (const groqModel of groqModels) {
+        try {
+          const response = await axios.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            {
+              model: groqModel,
+              messages: groqMessages,
+              temperature: 0.7,
+              max_tokens: 1200,
+            },
+            {
+              headers: {
+                Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              timeout: 30000,
+            }
+          );
+
+          const replyText = String(response.data?.choices?.[0]?.message?.content || "").trim();
+          if (!replyText) throw new Error("Groq returned no text");
+          console.log("AI reply generated with Groq fallback model:", groqModel);
+          return replyText;
+        } catch (err) {
+          groqError = err;
+          const status = err?.response?.status;
+          const code = err?.response?.data?.error?.code;
+          console.warn("Groq model failed:", groqModel, "status:", status || "network", code || err?.message || "");
+          // Only move to another model when this model is missing or retired.
+          if (status !== 404 && code !== "model_not_found") break;
+        }
+      }
+
+      if (groqError) throw groqError;
     } catch (groqError) {
       console.error(
         "Groq fallback failed:",
