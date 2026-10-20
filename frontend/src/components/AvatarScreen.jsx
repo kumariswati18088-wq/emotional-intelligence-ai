@@ -15,10 +15,13 @@ function clipFor(value, replyText = "") {
   // No clear emotion in the text? Keep the current expression instead of resetting to neutral.
   return null;
 }
-const src = (name) => "/videos/aura-" + name + ".mp4";
-const githubSrc = (name) => "https://raw.githubusercontent.com/kumariswati18088-wq/emotional-intelligence-ai/main/frontend/public/videos/aura-" + name + ".mp4";
+const girl1Src = (name) => "/videos/aura-" + name + ".mp4";
+const girl2Names = { idle: "normal", neutral: "normal", thinking: "thinking", happy: "happy", angry: "angry", crying: "cry", sad: "sad", surprised: "shocking", fear: "sad" };
+const src = (avatar, name) => avatar === "GIRL2"
+  ? "https://raw.githubusercontent.com/kumariswati18088-wq/emotional-intelligence-ai/main/frontend/" + (girl2Names[name] || "normal") + ".mp4"
+  : girl1Src(name);
 
-export default function AvatarScreen({ pendingSpeech, onSpeechConsumed, thinking = false }) {
+export default function AvatarScreen({ pendingSpeech, onSpeechConsumed, thinking = false, avatar = "GIRL1" }) {
   const videos = [useRef(null), useRef(null)];
   const [active, setActive] = useState(0);
   const [clip, setClip] = useState("idle");
@@ -45,7 +48,7 @@ export default function AvatarScreen({ pendingSpeech, onSpeechConsumed, thinking
     el.addEventListener("canplay", reveal, { once: true });
     el.dataset.clip = next;
     el.dataset.githubFallback = "0";
-    el.src = src(next);
+    el.src = src(avatar, next);
     el.load();
     if (el.readyState >= 3) reveal();
     window.setTimeout(() => {
@@ -62,7 +65,7 @@ export default function AvatarScreen({ pendingSpeech, onSpeechConsumed, thinking
         const initialClip = i === 0 ? "idle" : "happy";
         el.dataset.clip = initialClip;
         el.dataset.githubFallback = "0";
-        el.src = src(initialClip);
+        el.src = src(avatar, initialClip);
         el.load();
       }
       if (i === active) el.play().catch(() => {});
@@ -94,7 +97,7 @@ export default function AvatarScreen({ pendingSpeech, onSpeechConsumed, thinking
 
   return (
     <div className="relative aura-video-frame mx-auto w-full overflow-hidden rounded-3xl border border-white/10 bg-midnight-900 shadow-glow">
-      {videos.map((ref, i) => <video key={i} ref={ref} autoPlay loop muted playsInline preload="auto" aria-hidden="true" className="aura-emotion-video absolute inset-0 h-full w-full object-cover" style={{ opacity: active === i ? 1 : 0, transition: "opacity 180ms ease-in-out", zIndex: active === i ? 2 : 1 }} onTimeUpdate={(event) => { const el = event.currentTarget; const name = el.dataset.clip || clip; if (name && !["idle", "neutral", "thinking"].includes(name) && Number.isFinite(el.duration) && el.duration > 2 && el.currentTime >= el.duration * 0.68) { el.currentTime = 0; el.play().catch(() => {}); } }} onError={(event) => { const el = event.currentTarget; const name = el.dataset.clip || clip || "idle"; if (el.dataset.githubFallback !== "1") { el.dataset.githubFallback = "1"; el.src = githubSrc(name); el.load(); el.play().catch(() => {}); } }} />)}
+      {videos.map((ref, i) => <video key={i} ref={ref} autoPlay loop muted playsInline preload="auto" aria-hidden="true" className="aura-emotion-video absolute inset-0 h-full w-full object-cover" style={{ opacity: active === i ? 1 : 0, transition: "opacity 180ms ease-in-out", zIndex: active === i ? 2 : 1 }} onTimeUpdate={(event) => { const el = event.currentTarget; const name = el.dataset.clip || clip; if (name && !["idle", "neutral", "thinking"].includes(name) && Number.isFinite(el.duration) && el.duration > 2 && el.currentTime >= el.duration * 0.68) { el.currentTime = 0; el.play().catch(() => {}); } }} onError={(event) => { const el = event.currentTarget; const name = el.dataset.clip || clip || "idle"; if (avatar === "GIRL1" && el.dataset.githubFallback !== "1") { el.dataset.githubFallback = "1"; el.src = "https://raw.githubusercontent.com/kumariswati18088-wq/emotional-intelligence-ai/main/frontend/public/videos/aura-" + name + ".mp4"; el.load(); el.play().catch(() => {}); } }} />)}
       <div className="absolute left-3 top-3 z-10 flex items-center gap-2 rounded-full bg-black/65 px-3 py-1 text-xs text-white backdrop-blur"><span className="h-2 w-2 rounded-full bg-teal-300" />{thinking ? "🤔 Thinking" : (LABELS[clip] || emotionLabel)}</div>
     </div>
   );
