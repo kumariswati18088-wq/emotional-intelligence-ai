@@ -180,7 +180,7 @@ export default function App() {
       </header>
       <main className="aura-main aura-main-single">
         <section className="aura-video-stage" aria-label="Aura video">
-          <AvatarScreen token={token} avatar={settings.avatar} pendingSpeech={pendingSpeech} thinking={auraThinking} onSpeechConsumed={() => setPendingSpeech(null)} />
+          <AvatarScreen key={settings.avatar} token={token} avatar={settings.avatar} pendingSpeech={pendingSpeech} thinking={auraThinking} onSpeechConsumed={() => setPendingSpeech(null)} />
         </section>
         <section className="aura-chat-panel aura-chat-panel-main">
           <div className="aura-chat-heading"><span className="aura-chat-bubble" aria-hidden="true">◌</span><span>Chat with Aura</span><span className="aura-online-dot" title="Ready" /></div>
