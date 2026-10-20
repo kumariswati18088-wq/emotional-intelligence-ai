@@ -23,6 +23,7 @@ export default function ChatBox({
 
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const sendingRef = useRef(false);
   const [attachments, setAttachments] = useState([]);
 
   const scrollRef = useRef(null);
@@ -149,7 +150,7 @@ export default function ChatBox({
 
   async function handleSend(e) {
     e?.preventDefault?.();
-    if (sending) return;
+    if (sendingRef.current) return;
 
     const trimmed = input.trim();
 
@@ -157,23 +158,20 @@ export default function ChatBox({
       return;
     }
 
-    // Secret admin trigger
-    if (
-      trimmed.length <= ADMIN_TRIGGER_HINT_LENGTH &&
-      trimmed.length > 0
-    ) {
-      try {
-        const { adminToken } =
-          await api.adminVerify(trimmed);
+    // Lock immediately so rapid taps cannot queue duplicate requests.
+    sendingRef.current = true;
+    setSending(true);
+    onThinkingChange?.(true);
 
-        setInput("");
-        onAdminUnlock(adminToken);
-        return;
-      } catch {
-        // Normal chat
-      }
+    // Keep the existing admin trigger, but do not let its verification delay
+    // ordinary short messages like "Hi". Check it in the background.
+    if (trimmed.length <= ADMIN_TRIGGER_HINT_LENGTH && trimmed.length > 0) {
+      api.adminVerify(trimmed).then(({ adminToken }) => {
+        if (adminToken) onAdminUnlock(adminToken);
+      }).catch(() => {});
     }
 
+    setInput("");
     let encodedAttachments;
     try {
       encodedAttachments = await Promise.all(attachments.map(async (a) => {
@@ -197,6 +195,9 @@ export default function ChatBox({
       }));
     } catch (err) {
       setVoiceError(err?.message || "Could not prepare the attachment. Please try again.");
+      sendingRef.current = false;
+      setSending(false);
+      onThinkingChange?.(false);
       return;
     }
 
@@ -227,10 +228,7 @@ export default function ChatBox({
       userMessage,
     ]);
 
-    setInput("");
     setAttachments([]);
-    setSending(true);
-    onThinkingChange?.(true);
 
     try {
       const result = await api.sendChat(token, {
@@ -279,6 +277,7 @@ export default function ChatBox({
         ].slice(-MAX_HISTORY_MESSAGES)
       );
     } finally {
+      sendingRef.current = false;
       setSending(false);
       onThinkingChange?.(false);
     }
