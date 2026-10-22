@@ -209,9 +209,8 @@ async function generateReply({
 
   const configuredLanguage = languageNames[language] || null;
 
-  if (!process.env.GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY is not configured");
-  }
+  // Gemini is preferred, but do not abort here: Groq must remain usable
+  // when Gemini is unconfigured or its free quota is exhausted.
 
   const emotionalContext = emotion || "Neutral";
 
@@ -497,8 +496,15 @@ ${latestMessage}`
           const status = err?.response?.status;
           const code = err?.response?.data?.error?.code;
           console.warn("Groq model failed:", groqModel, "status:", status || "network", code || err?.message || "");
-          // Only move to another model when this model is missing or retired.
-          if (status !== 404 && code !== "model_not_found") break;
+          // Try the next supported model for retired IDs, quota/rate limits,
+          // temporary provider errors, and network timeouts.
+          const retryable = [400, 404, 408, 429, 500, 502, 503, 504].includes(status) ||
+            (!status && (
+              err?.code === "ECONNABORTED" ||
+              err?.code === "ETIMEDOUT" ||
+              /timeout|network/i.test(err?.message || "")
+            ));
+          if (!retryable && code !== "model_not_found") break;
         }
       }
 
