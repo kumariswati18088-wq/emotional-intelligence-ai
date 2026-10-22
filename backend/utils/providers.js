@@ -522,8 +522,89 @@ ${latestMessage}`
     }
   }
 
+  // Last-resort free provider: OpenRouter's free-model router.
+  // Keep the key server-side; do not expose it through VITE_ variables.
+  if (process.env.OPENROUTER_API_KEY) {
+    try {
+      const openRouterMessages = [{ role: "system", content: systemInstruction }];
+      if (Array.isArray(history) && history.length) {
+        const historyItems = history.slice(-50);
+        const lastItem = historyItems[historyItems.length - 1];
+        if (
+          lastItem?.role === "user" &&
+          String(lastItem?.text || "").trim() === latestMessage
+        ) {
+          historyItems.pop();
+        }
+        for (const item of historyItems) {
+          const historyMessage = String(item?.text || "").trim();
+          if (!historyMessage) continue;
+          openRouterMessages.push({
+            role: item?.role === "assistant" ? "assistant" : "user",
+            content: historyMessage,
+          });
+        }
+      }
+
+      const openRouterParts = [];
+      for (const part of contentParts) {
+        if (typeof part.text === "string" && part.text) {
+          openRouterParts.push({ type: "text", text: part.text });
+        } else if (part.inline_data?.mime_type?.startsWith("image/")) {
+          openRouterParts.push({
+            type: "image_url",
+            image_url: {
+              url: `data:${part.inline_data.mime_type};base64,${part.inline_data.data}`,
+            },
+          });
+        }
+      }
+      if (!openRouterParts.length) {
+        openRouterParts.push({ type: "text", text: latestMessage });
+      }
+      openRouterMessages.push({
+        role: "user",
+        content: openRouterParts.length === 1 && openRouterParts[0].type === "text"
+          ? openRouterParts[0].text
+          : openRouterParts,
+      });
+
+      const response = await axios.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        {
+          model: process.env.OPENROUTER_MODEL || "openrouter/free",
+          messages: openRouterMessages,
+          temperature: 0.7,
+          max_tokens: 1200,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://emotional-intelligence-ai-n9du.vercel.app",
+            "X-Title": "Aura Emotional Intelligence AI",
+          },
+          timeout: 30000,
+        }
+      );
+
+      const replyText = String(response.data?.choices?.[0]?.message?.content || "").trim();
+      if (!replyText) throw new Error("OpenRouter returned no text");
+      console.log("AI reply generated with OpenRouter model:", response.data?.model || process.env.OPENROUTER_MODEL || "openrouter/free");
+      return replyText;
+    } catch (openRouterError) {
+      console.error(
+        "OpenRouter fallback failed:",
+        openRouterError?.response?.status || "network",
+        openRouterError?.response?.data || openRouterError?.message || openRouterError
+      );
+      if (lastError) openRouterError.previousProviderError = lastError?.response?.data || lastError?.message;
+      throw openRouterError;
+    }
+  }
+
   if (lastError) throw lastError;
-  throw new Error("No AI provider is configured. Set GEMINI_API_KEY and/or GROQ_API_KEY.");
+  throw new Error("No AI provider is configured. Set GEMINI_API_KEY, GROQ_API_KEY, and/or OPENROUTER_API_KEY.");
 }
 
 // ============================================================
