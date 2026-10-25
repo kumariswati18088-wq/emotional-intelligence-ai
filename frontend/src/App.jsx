@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import AvatarScreen from "./components/AvatarScreen";
 import ChatBox from "./components/ChatBox";
 import ProfileMenu from "./components/ProfileMenu";
@@ -31,6 +31,7 @@ export default function App() {
   const [settings, setSettings] = useState(readSavedSettings);
 
   const [pendingSpeech, setPendingSpeech] = useState(null);
+  const serverAudioRef = useRef(null);
   const [adminToken, setAdminToken] = useState(null);
   const [callOpen, setCallOpen] = useState(false);
   const [auraThinking, setAuraThinking] = useState(false);
@@ -120,16 +121,41 @@ export default function App() {
     }
   }, [settings]);
 
-  // Free device-based TTS fallback. Uses the closest available voice on this device.
+  // Prefer server-generated voice when available; use free device TTS as fallback.
   function handleAiSpeech(payload) {
     setPendingSpeech(payload);
-
     if (!payload?.text) return;
-    // Always synthesize cleaned text locally; server audio may pronounce emoji names/sounds.
-    speakAuraText(payload.text, {
+
+    // Stop any previous server audio before starting a new reply.
+    if (serverAudioRef.current) {
+      serverAudioRef.current.pause();
+      serverAudioRef.current.currentTime = 0;
+      serverAudioRef.current = null;
+    }
+
+    const speakLocally = () => speakAuraText(payload.text, {
       language: settings.language,
       voice: settings.voice,
     });
+
+    // Server audio (e.g. ElevenLabs) is primary. If it is missing or playback fails,
+    // fall back to the free browser voice without interrupting the text reply.
+    if (payload.audio && typeof Audio !== "undefined") {
+      try {
+        const audio = new Audio(payload.audio);
+        serverAudioRef.current = audio;
+        Promise.resolve(audio.play()).catch((error) => {
+          console.warn("Aura server voice unavailable; using browser voice:", error);
+          if (serverAudioRef.current === audio) serverAudioRef.current = null;
+          speakLocally();
+        });
+        return;
+      } catch (error) {
+        console.warn("Could not initialize server audio; using browser voice:", error);
+      }
+    }
+
+    speakLocally();
   }
 
   function handleLogout() {
